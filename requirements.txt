@@ -1,3 +1,4 @@
 kagglehub
 numpy
 opencv-python
+matplotlib
