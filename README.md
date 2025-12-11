@@ -1,63 +1,90 @@
 
+
 # Recunoastere semne de circulatie
 
 **Disciplina:** Rețele Neuronale  
 **Instituție:** POLITEHNICA București – FIIR  
 **Student:** Georgescu Gabriel
-**Data:** 21.11.2025
+**Dată actualizare:** 10.12.2025
 
 ---
 
 ## Introducere
 
-Acest proiect implementeaza un sistem de recunoastere a semnelor de circulatie implementat in Python, folosind in principal bibliotecile YOLO si OpenCV.
+Acest proiect implementează un sistem de recunoaștere a semnelor de circulație implementat în Python, folosind în principal bibliotecile YOLO si OpenCV.
 
----
+## Instrucțiuni de rulare
+
+Aplicația a fost testată pe Python 3.12.10.
+
+Daca aplicația este rulată pe **Windows**, se recomandă folosirea [Python Install Manager](https://www.python.org/downloads/release/pymanager-252/):
+
+- Folosind `Python Install Manager`, instalați Python 3.12:
+
+  `py install 3.12`
+
+- Clonați repository-ul și schimbați directorul curent:
+	`git clone https://github.com/gabi200/proiect-rn.git`
+	`cd proiect-rn`
+
+- Instalați dependențele:
+
+   `py -V:3.12 -m pip install -r .\requirements.txt`
+
+- Rulați aplicatia:
+
+  `py -V:3.12 .\src\app\main.py`
 
 ##  1. Structura Repository-ului Github 
 
 ```
-project-name/
-├── README.md
-├── docs/
-│   └── datasets/          # descriere seturi de date, surse, diagrame
+proiect-rn-[nume-prenume]/
 ├── data/
-│   ├── raw/               # date brute
-│   ├── processed/         # date curățate și transformate
-│   ├── train/             # set de instruire
-│   ├── validation/        # set de validare
-│   └── test/              # set de testare
+│   ├── raw/
+│   ├── processed/
+│   ├── generated/  # Date originale
+│   ├── train/
+│   ├── validation/
+│   └── test/
 ├── src/
-│   ├── preprocessing/     # funcții pentru preprocesare
-│   ├── data_acquisition/  # generare / achiziție date (dacă există)
-│   └── neural_network/    # implementarea RN (în etapa următoare)
-├── config/                # fișiere de configurare
-└── requirements.txt       # dependențe Python (dacă aplicabil)
+│   ├── data_acquisition/
+│   ├── preprocessing/  # Din Etapa 3
+│   ├── neural_network/
+│   └── app/  # UI schelet
+├── docs/
+│   ├── state_machine.*           #(state_machine.png sau state_machine.pptx sau state_machine.drawio)
+│   └── [alte dovezi]
+├── models/  # Untrained model
+├── config/
+├── README.md
+├── README_Etapa3.md              # (deja existent)
+├── README_Etapa4_Arhitectura_SIA.md              # ← acest fișier completat (în rădăcină)
+└── requirements.txt  # Sau .lvproj
 ```
 
 ---
 
 ##  2. Descrierea Setului de Date
 
+
 ### 2.1 Sursa datelor
 
 * **Origine:** Imagini de pe Google Maps, YouTube, alte surse publice
-* **Modul de achiziție:** dataset public
-* **Perioada / condițiile colectării:** Generat pe 19.02.2024
+* **Modul de achiziție:** dataset public + generare
+* **Perioada / condițiile colectării:** Generat pe 19.02.2024 (dataset sursa)
 
 ### 2.2 Caracteristicile dataset-ului
 
-* **Număr total de observații:** 3253
-* **Număr de caracteristici (features):** 2
-* **Tipuri de date:** Imagini, Categoriale
+* **Număr total de observații:** 4381
+* **Număr de caracteristici (features):** 1
+* **Tipuri de date:** Imagini/Categoriale
 * **Format fișiere:** PNG
 
 ### 2.3 Descrierea fiecărei caracteristici
 
 | **Caracteristică** | **Tip** | **Unitate** | **Descriere** | **Domeniu valori** |
 |-------------------|---------|-------------|---------------|--------------------|
-| trafficsign_name | string | – | Numele semnului de circulatie | ex.: forb_left |
-| category | categorial | – | Categoria semnului de circulatie: forb (interzicere), info (informare), mand (obligare), warn (avertizare)| {"forb", "info", "mand", "warn"} |
+| trafficsign_name | categorial | – | Numele semnului de circulatie | ex.: forb_left |
 
 ---
 
@@ -65,25 +92,21 @@ project-name/
 
 ### 3.1 Statistici descriptive aplicate
 
-* **Distribuții pe caracteristici** (histograme)
-
-### 3.2 Probleme identificate
-- TODO
----
+* **Distribuții pe caracteristici** (histograme) - Se analizează distribuție în funcție de categoria semnului de circulație
 
 ##  4. Preprocesarea Datelor
 
 ###  4.1 Transformarea caracteristicilor
 
-* **Augumentarea datelor:** generare de caracteristici random (linii, patrate) pe imagini pentru a diversifica setul de date si a simula conditii reale. Dupa augumentare, s-a dublat setul de date, jumatate din total fiind generat.
+* **Augumentarea datelor:** generare de caracteristici random (linii, pătrate) pe imagini pentru a diversifica setul de date si a simula condiții reale. După augumentare, s-a dublat setul de date, jumătate din total fiind date augementate.
 
 
 ### 4.2 Structurarea seturilor de date
 
 **Împărțirea datelor:**
-* 80% – train
-* 10% – validation
-* 10% – test
+* 65% – train
+* 17.5% – validation
+* 17.5% – test
 
 **Principii respectate:**
 * Stratificare pentru clasificare
@@ -94,3 +117,51 @@ project-name/
 
 * Datele preprocesate sunt salvate direct în folderul train
 * Seturi train/val/test în foldere dedicate
+
+## 5. Nevoile rezvolate de SIA
+
+
+| **Nevoie reală concretă** | **Cum o rezolvă SIA-ul vostru** | **Modul software responsabil** |
+|---------------------------|--------------------------------|--------------------------------|
+| Detectarea semnelor de circulatie in conditii reale si variate | Model performant, date training variate si bine augumentate -> 30% înbunătățire recunoaștere în situații complexe| RN  |
+|Rularea eficientă pe diferite platforme hardware și integrarea cu hardware fizic | Folosirea OpenCV și unui model optimizat pentru o utilizare redusă a resurselor | RN + App |
+
+## 6. Contribuția originală la setul de date
+
+**Total observații finale:** 7634 (după Etapa 3 + Etapa 4)
+**Observații originale:** 3252 (42.6%)
+
+**Tipul contribuției:**
+[ ] Date generate prin simulare fizică  
+[ ] Date achiziționate cu senzori proprii  
+[ ] Etichetare/adnotare manuală  
+[ ] Date sintetice prin metode avansate  
+
+**Descriere detaliată:**
+[Explicați în 2-3 paragrafe cum ați generat datele, ce metode ați folosit, 
+de ce sunt relevante pentru problema voastră, cu ce parametri ați rulat simularea/achiziția]
+
+**Locația codului:** `src/data_acquisition/generate_img.py`
+**Locația datelor:** `data/generated/`
+
+**Dovezi:**
+- Grafic comparativ: `docs/generated_vs_real.png`
+- Setup experimental: `docs/acquisition_setup.jpg` (dacă aplicabil)
+- Tabel statistici: `docs/data_statistics.csv`
+
+## 7. Diagrama State Machine
+### Justificarea State Machine-ului ales:
+Am ales arhitectura de monitorizare continuă deoarece proiectul poate fi integrat într-un sistem 
+de control al unui vehicul autonom, unde reacția în timp real este critică.
+
+Stările principale sunt:
+1. Start Web UI: Interfata este pornita de utilizator, porneste inferenta daca exista o camera web.
+2. Get image from camera: Obtine o imagine de la camera web cu indexul 0 de pe sistem
+3. Inference: Ruleaza reteaua neuronala pentru a identifica semnele de circulatie din imagine
+4. Control action based on identified sign: In functie de semnul identificat, se poate transmite un semnal de stop, viraj etc.
+
+Tranzițiile critice sunt:
+- Operare -> STOP: Daca utilizatorul inchide interfata web.
+- IDLE -> ERROR: Daca nu exista o camera video conectata la sistem/s-a pierdut conexiunea.
+
+Starea ERROR este esențială pentru că exista posibilitatea ca, din cauza vibratiilor, sa se piarda conexiunea cu camera intr-un sistem mobil autonom.

@@ -1,6 +1,12 @@
 import os
 from collections import defaultdict
 
+import matplotlib
+
+# Use Agg backend for non-interactive (server/web) plotting
+matplotlib.use("Agg")
+import io
+
 import matplotlib.pyplot as plt
 
 # 1. Define the dataset classes exactly as provided
@@ -63,105 +69,128 @@ CLASS_NAMES = [
 ]
 
 # 2. Configuration
-LABELS_DIR = "../../data/train/labels"  # Path to your labels
-CATEGORIES = ["warn", "mand", "info", "forb"]
-COLORS = ["#ffcc00", "#3366cc", "#33cc33", "#cc3333"]  # Yellow, Blue, Green, Red
+DEFAULT_LABELS_DIR = "../../data/train/labels"
+CATEGORIES = ["warn", "mand", "info", "forb", "prio"]
+COLORS = ["#ffcc00", "#3366cc", "#33cc33", "#cc3333", "#ff9900"]
+CAT_COLOR_MAP = dict(zip(CATEGORIES, COLORS))
 
 
-def analyze_labels():
+def generate_analysis_image(labels_dir=None):
+    """
+    Scans the directory, counts classes, and returns a PNG image bytes buffer.
+    """
+    target_dir = labels_dir if labels_dir else DEFAULT_LABELS_DIR
+
     # Counters
     category_counts = defaultdict(int)
+    individual_counts = defaultdict(int)
     total_annotations = 0
 
-    # Check if directory exists
-    if not os.path.exists(LABELS_DIR):
-        print(f"Error: Directory '{LABELS_DIR}' not found.")
-        return
+    # Handle missing directory gracefully for the web app
+    if not os.path.exists(target_dir):
+        return create_error_image(f"Directory not found: {target_dir}")
 
-    print(f"Scanning files in {LABELS_DIR}...")
-
-    # 3. Iterate over all .txt files
-    files = [f for f in os.listdir(LABELS_DIR) if f.endswith(".txt")]
+    files = [f for f in os.listdir(target_dir) if f.endswith(".txt")]
 
     if not files:
-        print("No .txt files found.")
-        return
+        return create_error_image("No .txt files found in directory.")
 
     for filename in files:
-        filepath = os.path.join(LABELS_DIR, filename)
-        with open(filepath, "r") as f:
-            lines = f.readlines()
-            for line in lines:
-                parts = line.strip().split()
-                if not parts:
-                    continue
+        filepath = os.path.join(target_dir, filename)
+        try:
+            with open(filepath, "r") as f:
+                lines = f.readlines()
+                for line in lines:
+                    parts = line.strip().split()
+                    if not parts:
+                        continue
 
-                # The first element is the class ID
-                try:
-                    class_id = int(parts[0])
+                    try:
+                        class_id = int(parts[0])
+                        if 0 <= class_id < len(CLASS_NAMES):
+                            name = CLASS_NAMES[class_id]
+                            individual_counts[name] += 1
+                            total_annotations += 1
 
-                    if 0 <= class_id < len(CLASS_NAMES):
-                        name = CLASS_NAMES[class_id]
+                            matched = False
+                            for cat in CATEGORIES:
+                                if name.startswith(cat):
+                                    category_counts[cat] += 1
+                                    matched = True
+                                    break
+                            if not matched:
+                                category_counts["other"] += 1
+                    except ValueError:
+                        continue
+        except Exception:
+            continue
 
-                        # Determine category based on prefix
-                        matched = False
-                        for cat in CATEGORIES:
-                            if name.startswith(cat):
-                                category_counts[cat] += 1
-                                matched = True
-                                break
+    # Plotting
+    plt.style.use("dark_background")
+    fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(15, 14))
+    plt.subplots_adjust(hspace=0.6)
 
-                        if not matched:
-                            # Handle classes like 'prio' that weren't requested but exist
-                            category_counts["other"] += 1
-
-                        total_annotations += 1
-                    else:
-                        print(
-                            f"Warning: Class ID {class_id} in {filename} is out of range."
-                        )
-
-                except ValueError:
-                    print(
-                        f"Warning: Could not parse line in {filename}: {line.strip()}"
-                    )
-
-    # 4. Print Results
-    print("\n--- Analysis Results ---")
-    print(f"Total Files Scanned: {len(files)}")
-    print(f"Total Annotations: {total_annotations}")
-    for cat in CATEGORIES:
-        print(f"  {cat.upper()}: {category_counts[cat]}")
-    if category_counts["other"] > 0:
-        print(f"  OTHER (e.g., prio): {category_counts['other']}")
-
-    # 5. Plot Histogram
-    values = [category_counts[cat] for cat in CATEGORIES]
-
-    plt.figure(figsize=(10, 6))
-    bars = plt.bar(CATEGORIES, values, color=COLORS, edgecolor="black")
-
-    # Add counts on top of bars
-    for bar in bars:
+    # Plot 1: Categories
+    cat_values = [category_counts[cat] for cat in CATEGORIES]
+    bars1 = ax1.bar(CATEGORIES, cat_values, color=COLORS, edgecolor="white")
+    for bar in bars1:
         yval = bar.get_height()
-        plt.text(
+        ax1.text(
             bar.get_x() + bar.get_width() / 2,
-            yval + (max(values) * 0.01),
+            yval,
             int(yval),
             ha="center",
             va="bottom",
+            color="white",
             fontweight="bold",
         )
 
-    plt.title("Traffic Sign Distribution by Category", fontsize=16)
-    plt.xlabel("Category", fontsize=12)
-    plt.ylabel("Number of Instances (Annotations)", fontsize=12)
-    plt.grid(axis="y", linestyle="--", alpha=0.7)
+    ax1.set_title(
+        f"Traffic Sign Distribution (Total: {total_annotations})",
+        fontsize=16,
+        color="white",
+    )
+    ax1.set_ylabel("Count", fontsize=12, color="white")
+    ax1.grid(axis="y", linestyle="--", alpha=0.3)
 
-    # Show plot
-    plt.tight_layout()
-    plt.show()
+    # Plot 2: Individual Classes
+    ind_values = [individual_counts[name] for name in CLASS_NAMES]
+    ind_colors = []
+    for name in CLASS_NAMES:
+        color = "#888888"
+        for cat in CATEGORIES:
+            if name.startswith(cat):
+                color = CAT_COLOR_MAP[cat]
+                break
+        ind_colors.append(color)
+
+    ax2.bar(CLASS_NAMES, ind_values, color=ind_colors, edgecolor="white", alpha=0.8)
+    ax2.set_title(
+        "Detailed Distribution by Individual Class", fontsize=16, color="white"
+    )
+    ax2.set_ylabel("Count", fontsize=12, color="white")
+    ax2.set_xticklabels(
+        CLASS_NAMES, rotation=90, ha="center", fontsize=8, color="white"
+    )
+    ax2.set_xlim(-1, len(CLASS_NAMES))
+    ax2.grid(axis="y", linestyle="--", alpha=0.3)
+
+    # Save to IO buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", facecolor="#1a1a1a", bbox_inches="tight")
+    plt.close(fig)
+    buf.seek(0)
+    return buf
 
 
-if __name__ == "__main__":
-    analyze_labels()
+def create_error_image(msg):
+    """Helper to return an image with text if something fails."""
+    fig, ax = plt.subplots(figsize=(8, 2))
+    plt.style.use("dark_background")
+    ax.text(0.5, 0.5, f"Error: {msg}", ha="center", va="center", color="red")
+    ax.axis("off")
+    buf = io.BytesIO()
+    plt.savefig(buf, format="png", facecolor="#1a1a1a")
+    plt.close(fig)
+    buf.seek(0)
+    return buf

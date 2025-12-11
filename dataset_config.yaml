@@ -1,5 +1,6 @@
 train: data/train/images
 val: data/validation/images
+test: data/test/images
 
 nc: 55
 names:

@@ -14,11 +14,11 @@ print("Copying to dataset folder from cache...")
 
 try:
     shutil.copytree(
-        cache_path + "/V2 - Traffic Signs/train", "../../data/raw", dirs_exist_ok=True
+        cache_path + "/V2 - Traffic Signs/train", "data/raw", dirs_exist_ok=True
     )
     shutil.copytree(
         cache_path + "/V2 - Traffic Signs/valid",
-        "../../data/validation",
+        "data/validation",
         dirs_exist_ok=True,
     )
     print("Done copying dataset.")

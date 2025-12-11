@@ -2,3 +2,5 @@ kagglehub
 numpy
 opencv-python
 matplotlib
+flask
+ultralytics
