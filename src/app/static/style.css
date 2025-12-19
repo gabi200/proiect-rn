@@ -9,10 +9,11 @@ body {
     align-items: center;
 }
 
-h1 {
+.header h1 {
     margin-bottom: 20px;
     color: #00ffcc;
     text-shadow: 0 0 10px rgba(0, 255, 204, 0.3);
+    text-align: center;
 }
 
 .container {
@@ -20,9 +21,47 @@ h1 {
     max-width: 1400px;
     display: flex;
     flex-direction: column;
-    gap: 30px;
+    gap: 20px;
 }
 
+/* Tabs */
+.tabs {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+
+.tab-btn {
+    background-color: #333;
+    color: #fff;
+    border: none;
+    outline: none;
+    padding: 12px 24px;
+    cursor: pointer;
+    font-size: 16px;
+    border-radius: 8px 8px 0 0;
+    transition: background-color 0.3s;
+    font-weight: bold;
+}
+
+.tab-btn:hover {
+    background-color: #444;
+}
+
+.tab-btn.active {
+    background-color: #2a2a2a; /* Match content bg */
+    color: #00ffcc;
+    border-bottom: 2px solid #00ffcc;
+}
+
+.tab-content {
+    background-color: #2a2a2a;
+    padding: 20px;
+    border-radius: 0 8px 8px 8px; /* Round bottom corners */
+    min-height: 500px;
+}
+
+/* Live View Layout */
 .main-content {
     display: flex;
     flex-wrap: wrap;
@@ -31,10 +70,9 @@ h1 {
 }
 
 .video-box {
-    border: 2px solid #333;
+    border: 2px solid #444;
     border-radius: 8px;
     overflow: hidden;
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.5);
     background: #000;
     flex: 2;
     min-width: 640px;
@@ -46,21 +84,20 @@ img {
 }
 
 .controls {
-    background-color: #2a2a2a;
+    background-color: #333;
     padding: 20px;
     border-radius: 8px;
     flex: 1;
     min-width: 300px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     height: fit-content;
 }
 
 .control-group {
-    margin-bottom: 15px;
+    margin-bottom: 25px;
 }
 label {
     display: block;
-    margin-bottom: 5px;
+    margin-bottom: 8px;
     font-weight: bold;
 }
 input[type="range"] {
@@ -78,13 +115,127 @@ input[type="range"] {
     margin-top: 5px;
 }
 
-/* New Stats Section */
+/* Toggle Switch */
+.switch-label {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 50px;
+    height: 24px;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: #555;
+    transition: 0.4s;
+}
+
+.slider:before {
+    position: absolute;
+    content: "";
+    height: 16px;
+    width: 16px;
+    left: 4px;
+    bottom: 4px;
+    background-color: white;
+    transition: 0.4s;
+}
+
+input:checked + .slider {
+    background-color: #00ffcc;
+}
+input:focus + .slider {
+    box-shadow: 0 0 1px #00ffcc;
+}
+input:checked + .slider:before {
+    transform: translateX(26px);
+}
+.slider.round {
+    border-radius: 34px;
+}
+.slider.round:before {
+    border-radius: 50%;
+}
+
+/* Upload Section */
+.upload-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+}
+
+.upload-controls {
+    text-align: center;
+    background: #333;
+    padding: 20px;
+    border-radius: 8px;
+    width: 100%;
+    max-width: 600px;
+}
+
+.action-btn {
+    background-color: #00ffcc;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    margin-left: 10px;
+}
+
+.action-btn:hover {
+    background-color: #00ccaa;
+}
+
+.upload-result {
+    width: 100%;
+    max-width: 800px;
+    min-height: 400px;
+    background: #111;
+    border: 2px dashed #444;
+    border-radius: 8px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+.placeholder-box {
+    color: #666;
+    font-style: italic;
+}
+
+.status-msg {
+    margin-top: 10px;
+    font-weight: bold;
+}
+
+/* Stats Section */
 .stats-box {
     background-color: #2a2a2a;
     padding: 20px;
     border-radius: 8px;
-    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     text-align: center;
+    margin-top: 20px;
 }
 
 .stats-box h2 {

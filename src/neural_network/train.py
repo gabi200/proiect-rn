@@ -22,16 +22,37 @@ def main():
     log.info("Loading YOLOv9c model...")
     model = YOLO("../models/yolov9m.pt")
 
+    choice = input(
+        "Enter custom training parameters? Choosing 'no' will use default parameters (y/n) "
+    )
+
+    if choice.lower() == "y":
+        print("Please enter training parameters:")
+        epochs = int(input("Number of epochs: "))
+        batch = int(input("Batch size: "))
+        patience = int(input("Early stopping patience: "))
+
+        log.info(
+            f"Using custom training parameters: epochs={epochs}, batch={batch}, patience={patience}"
+        )
+    else:
+        epochs = 100
+        batch = 16
+        patience = 20
+        log.info(
+            f"Using default training parameters: epochs={epochs}, batch={batch}, patience={patience}"
+        )
+
     print("Starting training...")
     log.info("Starting training...")
     results = model.train(
         data="dataset_config.yaml",
-        epochs=100,
+        epochs=epochs,
         imgsz=640,
         device=device,
-        batch=16,  # Adjust based on your GPU VRAM
+        batch=batch,  # Adjust based on your GPU VRAM
         name="yolov9_traffic_signs",  # Name of the run folder
-        patience=20,  # Early stopping patience
+        patience=patience,  # Early stopping patience
         plots=True,  # Save plots of training metrics
     )
 

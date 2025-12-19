@@ -5,7 +5,7 @@
 **Disciplina:** Rețele Neuronale  
 **Instituție:** POLITEHNICA București – FIIR  
 **Student:** Georgescu Gabriel
-**Dată actualizare:** 10.12.2025
+**Dată actualizare:** 19.12.2025
 
 ---
 
@@ -35,7 +35,7 @@ Daca aplicația este rulată pe **Windows**, se recomandă folosirea [Python Ins
 
   `py -V:3.12 .\src\app\main.py`
   
-## Despre arhitrctura RN
+## Despre arhitectura RN
 
 Am ales folosirea **YOLO** deoarece acest model este specializat pe detecția de obiecte/feature-uri și a fost folosit si in detecția de semne de circulație. A fost aleasă versiunea **YOLOv9**, deoarece aceasta oferă un echilibru între performanța detecției și resursele utilizate. Astfel, sistemul poate fi rulat si pe sisteme embedded, de exemplu un **calculator de bord** inclus într-un vehicul sau un **single-board computer** (SBC).
 

@@ -10,41 +10,103 @@
         />
     </head>
     <body>
-        <h1>🚦 Traffic Sign Recognition System</h1>
+        <div class="header">
+            <h1>🚦 Traffic Sign Recognition System</h1>
+        </div>
 
         <div class="container">
-            <div class="main-content">
-                <div class="video-box">
-                    <img src="{{ url_for('video_feed') }}" alt="Video Feed" />
-                </div>
+            <!-- Tabs Navigation -->
+            <div class="tabs">
+                <button
+                    class="tab-btn active"
+                    onclick="openTab(event, 'LiveTab')"
+                >
+                    📷 Live Webcam
+                </button>
+                <button class="tab-btn" onclick="openTab(event, 'UploadTab')">
+                    📤 Image Upload
+                </button>
+            </div>
 
-                <div class="controls">
-                    <h2>Settings</h2>
-                    <div class="control-group">
-                        <label for="confSlider"
-                            >Confidence Threshold:
-                            <span id="confValue" class="value-display"
-                                >0.50</span
-                            ></label
-                        >
-                        <input
-                            type="range"
-                            id="confSlider"
-                            min="0.01"
-                            max="1.0"
-                            step="0.01"
-                            value="0.50"
+            <!-- Tab 1: Live Webcam -->
+            <div id="LiveTab" class="tab-content" style="display: block">
+                <div class="main-content">
+                    <div class="video-box">
+                        <img
+                            src="{{ url_for('video_feed') }}"
+                            alt="Video Feed"
                         />
                     </div>
-                    <p class="desc">
-                        Adjust sensitivity to reduce false positives.
-                    </p>
+
+                    <div class="controls">
+                        <h2>Live Controls</h2>
+
+                        <div class="control-group">
+                            <label class="switch-label">
+                                <span>Inference Active</span>
+                                <label class="switch">
+                                    <input
+                                        type="checkbox"
+                                        id="inferenceToggle"
+                                        checked
+                                    />
+                                    <span class="slider round"></span>
+                                </label>
+                            </label>
+                        </div>
+
+                        <div class="control-group">
+                            <label for="confSlider"
+                                >Confidence Threshold:
+                                <span id="confValue" class="value-display"
+                                    >0.50</span
+                                ></label
+                            >
+                            <input
+                                type="range"
+                                id="confSlider"
+                                min="0.01"
+                                max="1.0"
+                                step="0.01"
+                                value="0.50"
+                            />
+                        </div>
+                        <p class="desc">
+                            Adjust sensitivity to reduce false positives.
+                        </p>
+                    </div>
                 </div>
             </div>
 
+            <!-- Tab 2: Image Upload -->
+            <div id="UploadTab" class="tab-content" style="display: none">
+                <div class="upload-container">
+                    <div class="upload-controls">
+                        <h2>Upload Image</h2>
+                        <p>Select an image to detect traffic signs.</p>
+                        <input type="file" id="imageInput" accept="image/*" />
+                        <button class="action-btn" onclick="uploadImage()">
+                            Analyze Image
+                        </button>
+                        <div id="uploadStatus" class="status-msg"></div>
+                    </div>
+                    <div class="upload-result">
+                        <img
+                            id="resultImage"
+                            src=""
+                            alt="Result will appear here"
+                            style="display: none"
+                        />
+                        <div id="placeholder" class="placeholder-box">
+                            <span>No image uploaded</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Statistics Section (Common) -->
             <div class="stats-box">
                 <h2>Dataset Distribution Analysis</h2>
-                <!-- Calls the new route that runs analysis.py -->
                 <img
                     src="{{ url_for('dataset_stats_img') }}"
                     alt="Dataset Statistics"
@@ -54,17 +116,91 @@
         </div>
 
         <script>
+            // Tab Switching Logic
+            function openTab(evt, tabName) {
+                var i, tabcontent, tablinks;
+                tabcontent = document.getElementsByClassName("tab-content");
+                for (i = 0; i < tabcontent.length; i++) {
+                    tabcontent[i].style.display = "none";
+                }
+                tablinks = document.getElementsByClassName("tab-btn");
+                for (i = 0; i < tablinks.length; i++) {
+                    tablinks[i].className = tablinks[i].className.replace(
+                        " active",
+                        "",
+                    );
+                }
+                document.getElementById(tabName).style.display = "block";
+                evt.currentTarget.className += " active";
+            }
+
+            // Live Controls Logic
             const slider = document.getElementById("confSlider");
             const display = document.getElementById("confValue");
+            const toggle = document.getElementById("inferenceToggle");
 
-            slider.oninput = function () {
-                display.innerHTML = this.value;
+            function updateSettings() {
                 fetch("/update_settings", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({ conf: parseFloat(this.value) }),
+                    body: JSON.stringify({
+                        conf: parseFloat(slider.value),
+                        inference_enabled: toggle.checked,
+                    }),
                 });
+            }
+
+            slider.oninput = function () {
+                display.innerHTML = this.value;
+                updateSettings();
             };
+
+            toggle.onchange = function () {
+                updateSettings();
+            };
+
+            // Image Upload Logic
+            function uploadImage() {
+                const input = document.getElementById("imageInput");
+                const status = document.getElementById("uploadStatus");
+                const resultImg = document.getElementById("resultImage");
+                const placeholder = document.getElementById("placeholder");
+
+                if (input.files.length === 0) {
+                    status.innerHTML = "Please select a file first.";
+                    status.style.color = "orange";
+                    return;
+                }
+
+                const formData = new FormData();
+                formData.append("file", input.files[0]);
+
+                status.innerHTML = "Processing...";
+                status.style.color = "#00ffcc";
+
+                fetch("/upload_image", {
+                    method: "POST",
+                    body: formData,
+                })
+                    .then((response) => response.json())
+                    .then((data) => {
+                        if (data.status === "success") {
+                            resultImg.src =
+                                "data:image/jpeg;base64," + data.image;
+                            resultImg.style.display = "block";
+                            placeholder.style.display = "none";
+                            status.innerHTML = "Done!";
+                        } else {
+                            status.innerHTML = "Error: " + data.error;
+                            status.style.color = "red";
+                        }
+                    })
+                    .catch((error) => {
+                        console.error("Error:", error);
+                        status.innerHTML = "Upload failed.";
+                        status.style.color = "red";
+                    });
+            }
         </script>
     </body>
 </html>
