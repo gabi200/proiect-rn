@@ -1,3 +1,6 @@
+Welcome file
+Welcome file
+
 
 
 # 📘 README – Etapa 4: Arhitectura Completă a Aplicației SIA bazată pe Rețele Neuronale
@@ -199,13 +202,12 @@ RN_FORECAST (24h ahead) → VALIDATE_FORECAST (sanity checks) →
                 ACQUIRE_CURRENT_CONDITIONS (loop)
        ↓ [User request report]
      GENERATE_DAILY_REPORT → STOP
-```
+
 
 **Notă pentru proiecte simple:**
 Chiar dacă aplicația voastră este o clasificare simplă (user upload → classify → display), trebuie să modelați fluxul ca un State Machine. Acest exercițiu vă învață să gândiți modular și să anticipați toate stările posibile (inclusiv erori).
 
-**Legendă obligatorie (scrieți în README):**
-```markdown
+
 ### Justificarea State Machine-ului ales:
 
 Am ales arhitectura de monitorizare continuă deoarece proiectul poate fi integrat într-un sistem 
@@ -215,16 +217,17 @@ Stările principale sunt:
 1. Start Web UI: Interfata este pornita de utilizator, porneste inferenta daca exista o camera web.
 2. Get image from camera: Obtine o imagine de la camera web cu indexul 0 de pe sistem
 3. Inference: Ruleaza reteaua neuronala pentru a identifica semnele de circulatie din imagine
-4. Control action based on identified sign: In functie de semnul identificat, se poate transmite un semnal de stop, viraj etc.
-...
+4. Display inference output: se afiseaza clasele identificate pe imagine
+5. Wait for user input: se asteapta ca utilizatorul sa faca o actiune (sa schimbe tab-ul, sa incarce o imagine)
+6. Fetch and display histograms: se apeleaza modulul de analiza si afiseaza histograme relevante
+
 
 Tranzițiile critice sunt:
 - Operare -> STOP: Daca utilizatorul inchide interfata web.
-- IDLE -> ERROR: Daca nu exista o camera video conectata la sistem/s-a pierdut conexiunea.
+- IDLE -> ERROR FRAME: Daca nu exista o camera video conectata la sistem/s-a pierdut conexiunea.
 
 Starea ERROR este esențială pentru că exista posibilitatea ca, din cauza vibratiilor, sa se piarda conexiunea cu camera intr-un sistem mobil autonom. 
 
-```
 
 ---
 

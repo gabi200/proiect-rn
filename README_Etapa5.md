@@ -1,5 +1,7 @@
 
 
+
+
 # 📘 README – Etapa 5: Configurarea și Antrenarea Modelului RN
 
 **Disciplina:** Rețele Neuronale  
@@ -166,10 +168,12 @@ Am aplicat următoarele augumentări:
 | Export ONNX/TFLite + benchmark latență | Fișier `models/final_model.onnx` + demonstrație <50ms |
 | Confusion Matrix + analiză 5 exemple greșite | `docs/confusion_matrix.png` + analiză în README |
 
-**Resurse bonus:**
-- Export ONNX din PyTorch: [PyTorch ONNX Tutorial](https://pytorch.org/tutorials/beginner/onnx/export_simple_model_to_onnx_tutorial.html)
-- TensorFlow Lite converter: [TFLite Conversion Guide](https://www.tensorflow.org/lite/convert)
-- Confusion Matrix analiză: [Scikit-learn Confusion Matrix](https://scikit-learn.org/stable/modules/generated/sklearn.metrics.confusion_matrix.html)
+
+### Benchmark latență
+S-a utilizat modulul de benchmark integrat în biblioteca Ultralytics. Codul de benchmark este disponibil la calea `src/app/latency_benchmark.py`, iar log-ul rulării este disponibil la `docs/demo_latency_test.txt`.
+
+**Rezultat benchmark**: 15.47 ms
+
 
 ---
 
@@ -299,125 +303,99 @@ proiect-rn-[prenume-nume]/
 - Actualizat `src/app/main.py` să încarce model antrenat
 
 ---
+## Instrucțiuni rulare
 
-## Instrucțiuni de Rulare (Actualizate față de Etapa 4)
+Aplicația a fost testată pe Python 3.12.10.
 
-### 1. Setup mediu (dacă nu ați făcut deja)
+Daca aplicația este rulată pe **Windows**, se recomandă folosirea [Python Install Manager](https://www.python.org/downloads/release/pymanager-252/):
 
-```bash
-pip install -r requirements.txt
-```
+- Folosind `Python Install Manager`, instalați Python 3.12:
 
-### 2. Pregătire date (DACĂ ați adăugat date noi în Etapa 4)
+  `py install 3.12`
 
-```bash
-# Combinare + reprocesare dataset complet
-python src/preprocessing/combine_datasets.py
-python src/preprocessing/data_cleaner.py
-python src/preprocessing/feature_engineering.py
-python src/preprocessing/data_splitter.py --stratify --random_state 42
-```
+- Clonați repository-ul și schimbați directorul curent:
+	`git clone https://github.com/gabi200/proiect-rn.git`
+	`cd proiect-rn`
 
-### 3. Antrenare model
+- Instalați dependențele:
 
-```bash
-python src/neural_network/train.py --epochs 50 --batch_size 32 --early_stopping
+   `py -V:3.12 -m pip install -r .\requirements.txt`
 
-# Output așteptat:
-# Epoch 1/50 - loss: 0.8234 - accuracy: 0.6521 - val_loss: 0.7891 - val_accuracy: 0.6823
-# ...
-# Epoch 23/50 - loss: 0.3456 - accuracy: 0.8234 - val_loss: 0.4123 - val_accuracy: 0.7956
-# Early stopping triggered at epoch 23
-# ✓ Model saved to models/trained_model.h5
-```
+- Rulați aplicatia:
 
-### 4. Evaluare pe test set
+  `py -V:3.12 .\src\app\main.py`
 
-```bash
-python src/neural_network/evaluate.py --model models/trained_model.h5
+	- **IMPORTANT:** Datorită numărului mare de fișiere din dataset, nu este fezabilă și nici best-practice încarcarea acestora pe GitHub. Înainte de orice altă operațiune, selectați `Download dataset and generate data` și asteptați finalizarea scriptului, pentru descarcarea dataset-ului (de pe Kaggle) și apoi generarea datelor originale. În caz că apar eventuale probleme la descărcare și/sau generarea dataset-ului, datele sunt disponibile la [acest link Google Drive.](https://drive.google.com/drive/folders/1R2kPJKzK182LXeOGBuusAnqU6W9ZeAEa?usp=sharing)
+	- Pentru rularea intefaței web, selectați `Run web UI`, iar pentru evaluare selectați `Evaluate model`.
 
-# Output așteptat:
-# Test Accuracy: 0.7823
-# Test F1-score (macro): 0.7456
-# ✓ Metrics saved to results/test_metrics.json
-# ✓ Confusion matrix saved to docs/confusion_matrix.png
-```
+### Pentru antrenare:
+- Deoarece acesta este un SIA care lucrează cu imagini, se recomandă folosirea unui **GPU** pentru antrenare (de ex. prin tehnologia CUDA pentru Nvidia). Antrenarea pe **CPU** este extrem de lentă.
+- Este necesară instalarea versiunii PyTorch corespunzătoare pentru sistemul pe care este efectuată antrenarea, pentru suport CUDA/ROCm: [Download PyTorch](https://pytorch.org/)
+- Modelul a fost antrenat folosind CUDA pe un GPU Nvidia GeForce RTX 5060, 8GB VRAM. Pentru seria **RTX 5000**, se poate folosi următoarea comandă pentru a instala PyTorch:
 
-### 5. Lansare UI cu model antrenat
-
-```bash
-streamlit run src/app/main.py
-
-# SAU pentru LabVIEW:
-# Deschideți WebVI și rulați main.vi
-```
-
-**Testare în UI:**
-1. Introduceți date de test (manual sau upload fișier)
-2. Verificați că predicția este DIFERITĂ de Etapa 4 (când era random)
-3. Verificați că confidence scores au sens (ex: 85% pentru clasa corectă)
-4. Faceți screenshot → salvați în `docs/screenshots/inference_real.png`
-
+`py -V:3.12 -m pip install torch torchvision --index-url https://download.pytorch.org/whl/cu130`
+  
+  - Rulația aplicația (ca mai sus) și selectați `Train model`. La prompt-ul `Enter custom training parameters?` selectați `n` pentru a continua cu setările predefinite.
 ---
 
 ## Checklist Final – Bifați Totul Înainte de Predare
 
 ### Prerequisite Etapa 4 (verificare)
-- [ ] State Machine există și e documentat în `docs/state_machine.*`
-- [ ] Contribuție ≥40% date originale verificabilă în `data/generated/`
-- [ ] Cele 3 module din Etapa 4 funcționale
+- [X] State Machine există și e documentat în `docs/state_machine.*`
+- [X] Contribuție ≥40% date originale verificabilă în `data/generated/`
+- [X] Cele 3 module din Etapa 4 funcționale
 
 ### Preprocesare și Date
-- [ ] Dataset combinat (vechi + nou) preprocesat (dacă ați adăugat date)
-- [ ] Split train/val/test: 70/15/15% (verificat dimensiuni fișiere)
-- [ ] Scaler din Etapa 3 folosit consistent (`config/preprocessing_params.pkl`)
+- [X] Dataset combinat (vechi + nou) preprocesat (dacă ați adăugat date)
+- [X] Split train/val/test: 70/15/15% (verificat dimensiuni fișiere)
+- [X] Scaler din Etapa 3 folosit consistent (`config/preprocessing_params.pkl`)
 
 ### Antrenare Model - Nivel 1 (OBLIGATORIU)
-- [ ] Model antrenat de la ZERO (nu fine-tuning pe model pre-antrenat)
-- [ ] Minimum 10 epoci rulate (verificabil în `results/training_history.csv`)
-- [ ] Tabel hiperparametri + justificări completat în acest README
-- [ ] Metrici calculate pe test set: **Accuracy ≥65%**, **F1 ≥0.60**
-- [ ] Model salvat în `models/trained_model.h5` (sau .pt, .lvmodel)
-- [ ] `results/training_history.csv` există cu toate epoch-urile
+- [X] Model antrenat de la ZERO (nu fine-tuning pe model pre-antrenat)
+- [X] Minimum 10 epoci rulate (verificabil în `results/training_history.csv`)
+- [X] Tabel hiperparametri + justificări completat în acest README
+- [X] Metrici calculate pe test set: **Accuracy ≥65%**, **F1 ≥0.60**
+- [X] Model salvat în `models/trained_model.h5` (sau .pt, .lvmodel)
+- [X] `results/training_history.csv` există cu toate epoch-urile
 
 ### Integrare UI și Demonstrație - Nivel 1 (OBLIGATORIU)
-- [ ] Model ANTRENAT încărcat în UI din Etapa 4 (nu model dummy)
-- [ ] UI face inferență REALĂ cu predicții corecte
-- [ ] Screenshot inferență reală în `docs/screenshots/inference_real.png`
-- [ ] Verificat: predicțiile sunt diferite față de Etapa 4 (când erau random)
+- [X] Model ANTRENAT încărcat în UI din Etapa 4 (nu model dummy)
+- [X] UI face inferență REALĂ cu predicții corecte
+- [X] Screenshot inferență reală în `docs/screenshots/inference_real.png`
+- [X] Verificat: predicțiile sunt diferite față de Etapa 4 (când erau random)
 
 ### Documentație Nivel 2 (dacă aplicabil)
-- [ ] Early stopping implementat și documentat în cod
-- [ ] Learning rate scheduler folosit (ReduceLROnPlateau / StepLR)
-- [ ] Augmentări relevante domeniu aplicate (NU rotații simple!)
-- [ ] Grafic loss/val_loss salvat în `docs/loss_curve.png`
-- [ ] Analiză erori în context industrial completată (4 întrebări răspunse)
-- [ ] Metrici Nivel 2: **Accuracy ≥75%**, **F1 ≥0.70**
+- [X] Early stopping implementat și documentat în cod
+- [X] Learning rate scheduler folosit (ReduceLROnPlateau / StepLR)
+- [X] Augmentări relevante domeniu aplicate (NU rotații simple!)
+- [X] Grafic loss/val_loss salvat în `docs/loss_curve.png`
+- [X] Analiză erori în context industrial completată (4 întrebări răspunse)
+- [X] Metrici Nivel 2: **Accuracy ≥75%**, **F1 ≥0.70**
 
 ### Documentație Nivel 3 Bonus (dacă aplicabil)
 - [ ] Comparație 2+ arhitecturi (tabel comparativ + justificare)
-- [ ] Export ONNX/TFLite + benchmark latență (<50ms demonstrat)
+- [X] Export ONNX/TFLite + benchmark latență (<50ms demonstrat)
 - [ ] Confusion matrix + analiză 5 exemple greșite cu implicații
 
 ### Verificări Tehnice
 - [ ] `requirements.txt` actualizat cu toate bibliotecile noi
-- [ ] Toate path-urile RELATIVE (nu absolute: `/Users/...` )
+- [X] Toate path-urile RELATIVE (nu absolute: `/Users/...` )
 - [ ] Cod nou comentat în limba română sau engleză (minimum 15%)
-- [ ] `git log` arată commit-uri incrementale (NU 1 commit gigantic)
+- [X] `git log` arată commit-uri incrementale (NU 1 commit gigantic)
 - [ ] Verificare anti-plagiat: toate punctele 1-5 respectate
 
 ### Verificare State Machine (Etapa 4)
-- [ ] Fluxul de inferență respectă stările din State Machine
-- [ ] Toate stările critice (PREPROCESS, INFERENCE, ALERT) folosesc model antrenat
-- [ ] UI reflectă State Machine-ul pentru utilizatorul final
+- [X] Fluxul de inferență respectă stările din State Machine
+- [X] Toate stările critice (PREPROCESS, INFERENCE, ALERT) folosesc model antrenat
+- [X] UI reflectă State Machine-ul pentru utilizatorul final
 
 ### Pre-Predare
-- [ ] `docs/etapa5_antrenare_model.md` completat cu TOATE secțiunile
-- [ ] Structură repository conformă: `docs/`, `results/`, `models/` actualizate
+- [X] `docs/etapa5_antrenare_model.md` completat cu TOATE secțiunile
+- [X] Structură repository conformă: `docs/`, `results/`, `models/` actualizate
 - [ ] Commit: `"Etapa 5 completă – Accuracy=X.XX, F1=X.XX"`
 - [ ] Tag: `git tag -a v0.5-model-trained -m "Etapa 5 - Model antrenat"`
 - [ ] Push: `git push origin main --tags`
-- [ ] Repository accesibil (public sau privat cu acces profesori)
+- [X] Repository accesibil (public sau privat cu acces profesori)
 
 ---
 

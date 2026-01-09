@@ -12,6 +12,7 @@ get_dataset_path = os.path.join(current_dir, "..", "data_acquisition", "get_data
 data_gen_path = os.path.join(
     current_dir, "..", "data_acquisition", "data_generation_main.py"
 )
+eval_path = os.path.join(current_dir, "..", "neural_network", "evaluate.py")
 
 log = get_logger(__name__)
 
@@ -22,6 +23,7 @@ print("Author: Gabriel Georgescu, 632AB")
 print("[1] Run web UI")
 print("[2] Download dataset and generate data")
 print("[3] Train model")
+print("[4] Evaluate model")
 sel = input("Selection: ")
 
 if sel == "1":
@@ -35,6 +37,9 @@ elif sel == "2":
 elif sel == "3":
     log.info("Starting training module...")
     subprocess.run([sys.executable, train_path], check=True)
+elif sel == "4":
+    log.info("Starting evaluation module...")
+    subprocess.run([sys.executable, eval_path], check=True)
 
 else:
     log.error("Invalid user selection")

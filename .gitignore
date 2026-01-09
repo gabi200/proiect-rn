@@ -215,9 +215,8 @@ __marimo__/
 # Streamlit
 .streamlit/secrets.toml
 
-*.jpg
-*.png
-*.txt
-
-*.onnx
-*.torchscript
+data/generated/*
+data/train/*
+data/test/*
+data/validation/*
+data/raw/*
