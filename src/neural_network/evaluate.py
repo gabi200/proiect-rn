@@ -1,16 +1,18 @@
-from ultralytics import YOLO
-import pandas as pd
-import numpy as np
-import os
 import json
+import os
+
+import numpy as np
+import pandas as pd
+from ultralytics import YOLO
 
 # --- Configuration ---
 # Path to your trained weights
-MODEL_PATH = "models/trained_model.pt"
+MODEL_PATH = "models/optimized_model.pt"
 # Dataset config
 DATA_CONFIG = "dataset_config.yaml"
 # Directory to save results
 OUTPUT_DIR = "evaluation_results"
+
 
 def main():
     # 1. Setup
@@ -31,12 +33,12 @@ def main():
     print("\nStarting evaluation on 'test' split...")
     # split='test' forces it to use the test set defined in yaml.
     # plots=True ensures standard confusion matrix images are generated internally if you want them later.
-    metrics = model.val(data=DATA_CONFIG, split='test', plots=True, save_json=True)
+    metrics = model.val(data=DATA_CONFIG, split="test", plots=True, save_json=True)
 
     # 3. Extract and Print Standard Metrics
-    print("\n" + "="*30)
+    print("\n" + "=" * 30)
     print("   EVALUATION RESULTS")
-    print("="*30)
+    print("=" * 30)
 
     # mAP50-95 (Mean Average Precision at IoU 0.50:0.95)
     map50_95 = metrics.box.map
@@ -57,7 +59,7 @@ def main():
         "map50": map50,
         "precision": precision,
         "recall": recall,
-        "fitness": metrics.fitness
+        "fitness": metrics.fitness,
     }
 
     json_path = os.path.join(OUTPUT_DIR, "metrics_summary.json")
@@ -85,11 +87,7 @@ def main():
             class_names.append("background")
 
         # Create DataFrame
-        df_cm = pd.DataFrame(
-            cm_array,
-            index=class_names,
-            columns=class_names
-        )
+        df_cm = pd.DataFrame(cm_array, index=class_names, columns=class_names)
 
         # Save to CSV
         csv_path = os.path.join(OUTPUT_DIR, "confusion_matrix.csv")
@@ -103,21 +101,20 @@ def main():
         row_sums[row_sums == 0] = 1
         norm_cm_array = cm_array / row_sums
 
-        df_norm = pd.DataFrame(
-            norm_cm_array,
-            index=class_names,
-            columns=class_names
-        )
+        df_norm = pd.DataFrame(norm_cm_array, index=class_names, columns=class_names)
         norm_csv_path = os.path.join(OUTPUT_DIR, "confusion_matrix_normalized.csv")
         df_norm.to_csv(norm_csv_path)
         print(f" Normalized Confusion Matrix CSV saved to: {norm_csv_path}")
 
     except AttributeError:
-        print(" Warning: Could not extract confusion matrix directly. Ensure you are using a recent version of Ultralytics.")
+        print(
+            " Warning: Could not extract confusion matrix directly. Ensure you are using a recent version of Ultralytics."
+        )
     except Exception as e:
         print(f"❌ Error generating CSV: {e}")
 
     print("\nDone.")
+
 
 if __name__ == "__main__":
     main()

@@ -24,7 +24,7 @@ sys.path.append(os.path.join(current_dir, "..", "preprocessing"))
 import analysis
 
 # --- Configuration ---
-MODEL_PATH = "../models/trained_model.pt"
+MODEL_PATH = "../models/optimized_model.pt"
 WEBCAM_ID = 0
 LOG_FILE_PATH = "logs/app_activity.log"
 
@@ -131,19 +131,20 @@ def process_frame(frame, conf_thresh):
                 )
 
                 # Add to current detections list
-                current_detections.append(
-                    {
-                        "time": datetime.datetime.now().strftime("%H:%M:%S"),
-                        "class": current_class,
-                        "conf": f"{conf:.2f}",
-                    }
-                )
+                detection_info = {
+                    "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                    "class": current_class,
+                    "conf": f"{conf:.2f}",
+                }
+                current_detections.append(detection_info)
 
         # Update global history with unique detections from this frame (to avoid spamming the log)
         # We assume if the class and conf are identical to the last entry, it's the same object
         for det in current_detections:
             if not detection_history or (detection_history[0]["class"] != det["class"]):
                 detection_history.appendleft(det)
+                # Log detection to the central logging system
+                log.info(f"Detected: {det['class']} (Conf: {det['conf']})")
 
     except Exception as e:
         log.error(f"Inference Error in process_frame: {e}")
@@ -165,6 +166,8 @@ def capture_frames():
 
     print("Webcam opened successfully.")
 
+    prev_time = 0
+
     while True:
         success, frame = cap.read()
         if not success:
@@ -178,10 +181,25 @@ def capture_frames():
         if inference_enabled:
             frame = process_frame(frame, conf_threshold)
 
+        # Calculate FPS
+        curr_time = time.time()
+        fps = 1 / (curr_time - prev_time) if prev_time != 0 else 0
+        prev_time = curr_time
+
+        # Draw FPS on frame (Green text with black outline for visibility)
+        fps_text = f"FPS: {fps:.1f}"
+        cv2.putText(
+            frame, fps_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 4
+        )  # Outline
+        cv2.putText(
+            frame, fps_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2
+        )  # Text
+
         with lock:
             outputFrame = frame.copy()
 
-        time.sleep(0.01)
+        # Minimal sleep to prevent pure busy loop, but kept low for high FPS
+        time.sleep(0.001)
 
 
 def generate():
@@ -302,6 +320,38 @@ def get_app_log():
         content = f"Error reading log file: {e}"
 
     return jsonify({"content": content})
+
+
+@app.route("/download_logs")
+def download_logs():
+    """Downloads the current log file."""
+    try:
+        if os.path.exists(LOG_FILE_PATH):
+            return send_file("../../" + LOG_FILE_PATH, as_attachment=True)
+        else:
+            return "Log file not found", 404
+    except Exception as e:
+        return str(e), 500
+
+
+@app.route("/snapshot")
+def snapshot():
+    """Takes a snapshot of the current video frame."""
+    with lock:
+        if outputFrame is None:
+            return "No frame available", 404
+        # Encode the current frame as a JPEG
+        _, buffer = cv2.imencode(".jpg", outputFrame)
+
+    # Generate a filename with timestamp
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    filename = f"snapshot_{timestamp}.jpg"
+
+    return Response(
+        buffer.tobytes(),
+        mimetype="image/jpeg",
+        headers={"Content-Disposition": f"attachment;filename={filename}"},
+    )
 
 
 @app.route("/dataset_stats.png")

@@ -122,6 +122,37 @@ input[type="range"] {
     margin-top: 5px;
 }
 
+/* Utility Buttons */
+.action-btn {
+    background-color: #00ffcc;
+    color: #000;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: bold;
+    font-size: 16px;
+    margin-left: 10px;
+    transition: all 0.2s;
+    text-decoration: none; /* For link buttons */
+    display: inline-block;
+}
+
+.action-btn:hover {
+    background-color: #00ccaa;
+}
+
+.full-width {
+    width: 100%;
+    margin-left: 0;
+    text-align: center;
+}
+
+.small-btn {
+    padding: 5px 15px;
+    font-size: 14px;
+}
+
 /* Detection Log (Live) */
 .detection-log-box {
     background-color: #333;
@@ -249,22 +280,6 @@ input:checked + .slider:before {
     max-width: 600px;
 }
 
-.action-btn {
-    background-color: #00ffcc;
-    color: #000;
-    border: none;
-    padding: 10px 20px;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-    font-size: 16px;
-    margin-left: 10px;
-}
-
-.action-btn:hover {
-    background-color: #00ccaa;
-}
-
 .upload-result {
     width: 100%;
     max-width: 800px;
@@ -295,9 +310,16 @@ input:checked + .slider:before {
     height: 600px;
 }
 
-.logs-container h2 {
+.logs-header-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.logs-header-row h2 {
     color: #00ffcc;
-    margin-top: 0;
+    margin: 0;
 }
 
 .log-actions {

@@ -75,6 +75,17 @@
                                     value="0.50"
                                 />
                             </div>
+
+                            <!-- Snapshot Button -->
+                            <div class="control-group">
+                                <button
+                                    class="action-btn full-width"
+                                    onclick="location.href = '/snapshot'"
+                                >
+                                    📸 Save Snapshot
+                                </button>
+                            </div>
+
                             <p class="desc">
                                 Adjust sensitivity to reduce false positives.
                             </p>
@@ -129,7 +140,17 @@
             <!-- Tab 3: System Logs -->
             <div id="LogsTab" class="tab-content" style="display: none">
                 <div class="logs-container">
-                    <h2>System Log File (app_activity.log)</h2>
+                    <div class="logs-header-row">
+                        <h2>System Log File (app_activity.log)</h2>
+                        <!-- Download Logs Button -->
+                        <button
+                            class="action-btn small-btn"
+                            onclick="location.href = '/download_logs'"
+                        >
+                            ⬇️ Download Logs
+                        </button>
+                    </div>
+
                     <div class="log-actions">
                         <span class="status-dot"></span>
                         <span id="logStatus">Live Updating...</span>

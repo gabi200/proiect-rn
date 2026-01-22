@@ -2,6 +2,7 @@
 
 
 
+
 # Recunoastere semne de circulatie
 
 **Disciplina:** Rețele Neuronale  
@@ -179,9 +180,11 @@ Am generat feature-uri random (linii, patrate) pe imaginile din dataset,
 folosind OpenCV, reprezentand o augumentare complexa a datelor.
 
 **Locația codului:** `src/data_acquisition/generate_img.py`
+
 **Locația datelor:** `data/generated/`
 
 **Dovezi:**
+
 - Log generare: `docs/log_generare.txt`
 
 
@@ -220,6 +223,7 @@ Starea ERROR este esențială pentru că exista posibilitatea ca, din cauza vibr
 
 
 **Augumentări relevante domeniu**
+
 Am aplicat următoarele augumentări:
 - `hsv_h=0.015` (hue). Am setat această valoare la o valoare foarte scăzută pentru a nu schimba radical culorile, acestea fiind importante pentru identificarea tipului de acțiune (albastru = indicator de obligație, roșu = interzicere etc.)
 - `hsv_s=0.6`(saturation). Valoarea de saturație ajută la simularea diferitelor condiții de lumină sau a semnelor murdare.
@@ -233,9 +237,11 @@ Am aplicat următoarele augumentări:
 ## Evaluare acuratețe și performanță
 
 **mAP50 (toate clasele)**: 0.917
+
 **F1 (toate clasele)**: 0.83
 
 ### Benchmark latență
 S-a utilizat modulul de benchmark integrat în biblioteca Ultralytics. Codul de benchmark este disponibil la calea `src/app/latency_benchmark.py`, iar log-ul rulării este disponibil la `docs/demo_latency_test.txt`.
+
 
 **Rezultat benchmark**: 15.47 ms

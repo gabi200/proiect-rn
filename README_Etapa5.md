@@ -2,6 +2,7 @@
 
 
 
+
 # 📘 README – Etapa 5: Configurarea și Antrenarea Modelului RN
 
 **Disciplina:** Rețele Neuronale  
@@ -121,6 +122,7 @@ Puterea electrică consumată este indicatorul optim pentru munca efectivă real
 Pentru acest workload, puterea maximă atinsă a fost de aprox. **120W** (fluctuează 100-120W) pentru `batch_size=10`. 
 
 **Justificare  parametri loss functions**
+
 Classification loss gain (cls = 1.5). Există 55 de clase, dintre care multe sunt similare (de ex, semnele de limită de viteză). Valoarea default este 0.5, însă am crescut-o deoarece această reprezintă "penalizarea" claselor greșite. Este necesară o penalizare ridicată pentru a diferenția clar și clasele care arată foarte similar.
 
 ---
@@ -143,9 +145,11 @@ Includeți **TOATE** cerințele Nivel 1 + următoarele:
 - **F1-score (macro) ≥ 0.70**
 
 **Justificare learning rate scheduler**
+
 Am folosit learning scheduler `cos_lr` (cosine annealing), deoarece acesta ajută în cazurile în care clasele sunt similare (de ex. un semn de limită de viteză 30 km/h vs. limită 50 km/h) și rezultă într-o acuratețe mai bună pentru această aplicație.
 
 **Augumentări relevante domeniu**
+
 Am aplicat următoarele augumentări:
 - `hsv_h=0.015` (hue). Am setat această valoare la o valoare foarte scăzută pentru a nu schimba radical culorile, acestea fiind importante pentru identificarea tipului de acțiune (albastru = indicator de obligație, roșu = interzicere etc.)
 - `hsv_s=0.6`(saturation). Valoarea de saturație ajută la simularea diferitelor condiții de lumină sau a semnelor murdare.
@@ -172,7 +176,7 @@ Am aplicat următoarele augumentări:
 ### Benchmark latență
 S-a utilizat modulul de benchmark integrat în biblioteca Ultralytics. Codul de benchmark este disponibil la calea `src/app/latency_benchmark.py`, iar log-ul rulării este disponibil la `docs/demo_latency_test.txt`.
 
-**Rezultat benchmark**: 15.47 ms
+**Rezultat benchmark (end-to-end)**: 17.5 ms
 
 
 ---
