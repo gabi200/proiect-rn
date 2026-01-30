@@ -1,5 +1,6 @@
 
 
+
 # README – Etapa 6: Analiza Performanței, Optimizarea și Concluzii Finale
 
 **Disciplina:** Rețele Neuronale  
@@ -102,14 +103,15 @@ Documentați **minimum 4 experimente** cu variații sistematice:
 | 1 | Schimbare `cls=2.0, optimizer='AdamW', batch=8` | 0.937 | 0.86 | 212 min (3.5 h) | Imbunatatire minora la mAP50, scadere cu 36% a timpului de antrenare |
 | 2 | Schimbare `label_smoothing=0.1, batch=8, optimizer='Adam', lr0=0.001` | 0.957 | 0.91 | 235 min (3.9 h) | Imbunatatiri semnificative in mAP50 si F1, cu un timp decent de antrenare |
 | 3 | Schimbare `label_smoothing=0.1, batch=8, optimizer='Adam', lr0=0.001, close_mosaic=10, epochs=60` | 0.952 | 0.91 | 287 min (4.8 h) | Rezultate in marja de eroare comparativ cu exp. anterior, cu un timp mai lung de antrenare |
-| 4 | Schimbare `label_smoothing=0.1, batch=8, optimizer='Adam', lr0=0.001, copy_paste=0.3` | 0.957 | 0.91 | 206 min (3.4 h)  | Cea mai buna acuratete, timp de antrenare excelent |
+| 4 | Schimbare `label_smoothing=0.1, batch=8, optimizer='Adam', lr0=0.001, copy_paste=0.3` | 0.957 | 0.91 | 206 min (3.4 h)  | Cea mai buna acuratete, timp de antrenare bun |
+| 5 | Schimbare arhitectura `YOLO26s`, `label_smoothing=0.1, batch=10, optimizer='Adam', lr0=0.001, copy_paste=0.3, imgsz=960` | 0.94 | 0.88 | 113 min (1.9 h)  | Un echilibru foarte bun intre timp de antrenare si acuratete |
 
 
 **Justificare alegere configurație finală:**
 
 Am ales Experimentul 4 ca model final:
 - oferă valorile mAP50=0.957 și scor F1=0.91 excelente, care sunt importante pentru o recunoașterea semnelor de circulație, o aplicație safety-critical
-- cel mai mic timp de antrenare (206 min)
+- timp de antrenare suficient de mic (206 min)
 - îmbunătățirea în performanță este dată de schimbarea parametrilor, în special `label_smoothing=0.1`, care ajută la diferențierea semnelor asemănătoare (de exemplu cele de limitare de viteză)
 - timpul de antrenare este redus datorită în principal datorită `batch=8`
 
@@ -123,20 +125,21 @@ Am ales Experimentul 4 ca model final:
 
 | **Componenta** | **Stare Etapa 5** | **Modificare Etapa 6** | **Justificare** |
 |----------------|-------------------|------------------------|-----------------|
-| **Model încărcat** | `trained_model.h5` | `optimized_model.h5` | +4% accuracy, +9% F1 score, -37% timp antrenare|
+| **Model încărcat** | `trained_model.pt` | `optimized_model.pt` | +4% accuracy, +9% F1 score, -37% timp antrenare|
  |**Logging** | Doar log-uri de sistem (stare aplicație)| Log-uri sistem + detecție (clasă detectată + confidence). Opțiune export log-uri |Audit trail complet |
  |**Preview cameră** | Stream cameră cu overlay detecție| Adăugat FPS counter | Monitorizare performanță sistem în timp real |
-  |**Snapshots** | N/A| Adăugat FPS counter | Adăugat opțiune de capturare snapshot cameră (cu overlay detecție și FPS) |
+  |**Snapshots** | N/A| Adăugat opțiune de captura snapshot cameră (cu overlay detecție și FPS) | Captura output sistem pentru logging/debugging |
+  |**Simulare sistem de control vehicul** | N/A| Adăugat simulare stare vehicul (vitezometru, semnalizare) care reactioneaza la semnele detectate |Demonstratie aplicatie reala a sistemului |
 
 ### Modificări concrete aduse în Etapa 6:
 
-1. **Model înlocuit:** `models/trained_model.h5` → `models/optimized_model.h5`
+1. **Model înlocuit:** `models/trained_model.pt` → `models/optimized_model.pt`
    - Îmbunătățire: Accuracy +4%, F1 +9%
    - Motivație: aplicația are cerințe ridicate de siguranță și fiabilitate
 
 3. **UI îmbunătățit:**
    - Adăugat FPS counter, opțiune export snapshot, opțiune export logs
-   - Screenshot: `docs/screenshots/ui_optimized_1.png, ui_optimized_2.png, ui_optimized_3.png`
+   - Screenshot-uri: `docs/screenshots/ui_optimized_1.png, ui_optimized_2.png, ui_optimized_3.png, ui_optimized_4.png`
 
 4. **Pipeline end-to-end re-testat:**
    - Test complet: input → preprocess → inference → decision → output
@@ -152,40 +155,40 @@ Am ales Experimentul 4 ca model final:
 
 **Analiză obligatorie (completați):**
 
-```markdown
+
 ### Interpretare Confusion Matrix:
 
-**Clasa cu cea mai bună performanță:** [Nume clasă]
-- Precision: [X]%
-- Recall: [Y]%
-- Explicație: [De ce această clasă e recunoscută bine - ex: features distincte, multe exemple]
+**Clasa cu cea mai bună performanță:** `mand_straight`
+- Precision: 99-100%
+- Recall: 99-100%
+- Explicație: Semnul _„Mergi înainte”_ prezintă o geometrie clară și unică (săgeată verticală), cu contrast ridicat și variabilitate redusă. Aceste caracteristici vizuale stabile, împreună cu o reprezentare consistentă în setul de date, conduc la o separabilitate excelentă față de celelalte clase direcționale.
 
-**Clasa cu cea mai slabă performanță:** [Nume clasă]
-- Precision: [X]%
-- Recall: [Y]%
-- Explicație: [De ce această clasă e problematică - ex: confuzie cu altă clasă, puține exemple]
+**Clasa cu cea mai slabă performanță:** `forb_speed_over_30`
+- Precision: 93%
+- Recall: 91%
+- Explicație: Semnul de _limită de viteză 30 km/h_ este frecvent confundat cu alte semne de limită de viteză apropiate (`forb_speed_over_20`, `forb_speed_over_40`). Diferențierea se bazează exclusiv pe cifre, care devin dificil de distins la rezoluții mici, în condiții de blur sau variații de iluminare.
 
 **Confuzii principale:**
-1. Clasa [A] confundată cu clasa [B] în [X]% din cazuri
-   - Cauză: [descrieți - ex: features similare, overlap în spațiul de caracteristici]
-   - Impact industrial: [descrieți consecințele]
+1. Clasa `forb_speed_over_30` confundată cu `forb_speed_over_40` în ~6–8% din cazuri
+   - Cauză: Similaritate vizuală ridicată (formă circulară, culori identice), diferența fiind doar valoarea numerică din interior.
+   - Impact industrial: O limită de viteză interpretată greșit poate conduce la setarea incorectă a vitezei țintă a vehiculului autonom, cu implicații directe asupra siguranței și conformității cu legislația rutieră.
    
-2. Clasa [C] confundată cu clasa [D] în [Y]% din cazuri
-   - Cauză: [descrieți]
-   - Impact industrial: [descrieți]
-```
+2. Clasa `warn_slippery_road` confundată cu `warn_poor_road_surface` în ~5–7% din cazuri
+   - Cauză: Ambele sunt semne de avertizare cu pictograme similare, având aceeași formă triunghiulară și simboluri legate de aderența carosabilului.
+   - Impact industrial: Această confuzie poate duce la reacții de control suboptime (de exemplu, activarea sau dezactivarea necorespunzătoare a strategiilor de limitare a accelerației sau de control al stabilității).
+
 
 ### 2.2 Analiza Detaliată a 5 Exemple Greșite
 
 Selectați și analizați **minimum 5 exemple greșite** de pe test set:
 
-| **Index** | **True Label** | **Predicted** | **Confidence** | **Cauză probabilă** | **Soluție propusă** |
+| **Path** | **True Label** | **Predicted** | **Confidence** | **Cauză probabilă** | **Soluție propusă** |
 |-----------|----------------|---------------|----------------|---------------------|---------------------|
-| #127 | defect_mare | defect_mic | 0.52 | Imagine subexpusă | Augmentare brightness |
-| #342 | normal | defect_mic | 0.48 | Zgomot senzor ridicat | Filtru median pre-inference |
-| #567 | defect_mic | normal | 0.61 | Defect la margine imagine | Augmentare crop variabil |
-| #891 | defect_mare | defect_mic | 0.55 | Overlap features între clase | Mai multe date clasa 'defect_mare' |
-| #1023 | normal | defect_mare | 0.71 | Reflexie metalică interpretată ca defect | Augmentare reflexii |
+|  `docs/fail_examples/1.png`  | N/A|` mand_roundabout `| 0.5 | Logo de pe o masina cu geometrie si  culoare similara cu semnul | X|
+|  `docs/fail_examples/2.png`  | N/A |` warn_two_way_traffic `| 0.4 | Semnul real nu e in dataset, dar e tot de avertizare si are simbol similar| X |
+| `docs/fail_examples/3.jpg` |` mand_pass_left_right` |` mand_bike_lane` | 0.71 | Semnul este murdar si are stickere pe el | X |
+| `docs/fail_examples/4.jpg` | N/A |` prio_stop` | 0.70 | Culoare si forma similiara | X
+|`docs/fail_examples/5.jpg` | N/A|`info_one_way_traffic` | 0.41 | Culoare si forma similara | X |
 
 **Analiză detaliată per exemplu (scrieți pentru fiecare):**
 ```markdown
@@ -223,15 +226,15 @@ Descrieți strategia folosită pentru optimizare:
 **Abordare:** Manual
 
 **Axe de optimizare explorate:**
-1. **Arhitectură:** N/A
+1. **Arhitectură:** schimbare de la `YOLO11m` la `YOLO26s`
 2. **Regularizare:** `label_smoothing=0.1`
 3. **Learning rate:** schimbare `lr0=0.001` (initial learning rate), optimizer Adam
 4. **Augmentări:** `copy_paste=0.3` (context augumentation)
 5. **Batch size:** micșorare batch size la 8
 
-**Criteriu de selecție model final:** 
+**Criteriu de selecție model final:** F1-score si mAP50 maxim, cu timp de antrenare rezonabil
 
-**Buget computațional:** 4 experimente, 21.1 ore GPU
+**Buget computațional:** 5 experimente, 23 ore GPU
 
 
 ### 3.2 Grafice Comparative
@@ -242,7 +245,6 @@ Generați și salvați în `docs/optimization/`:
 - `learning_curves_best.png` - Loss și Accuracy pentru modelul final
 
 ### 3.3 Raport Final Optimizare
-
 
 ### Raport Final Optimizare
 
@@ -257,18 +259,17 @@ Generați și salvați în `docs/optimization/`:
 - Latență: 17.6 ms (diferență neglijabilă, margin of error)
 
 **Configurație finală aleasă:**
-- Arhitectură: [descrieți]
-- Learning rate: [valoare] cu [scheduler]
-- Batch size: [valoare]
-- Regularizare: [Dropout/L2/altele]
-- Augmentări: [lista]
-- Epoci: [număr] (early stopping la epoca [X])
+- Arhitectură: YOLO11m
+- Learning rate: 0.001 cu `cos_lr`
+- Batch size: 8
+- Regularizare: `label_smoothing=0.1`
+- Augmentări: `hsv_h=0.015, hsv_s=0.6, hsv_v=0.5, scale=0.8, shear=2.0, perspective=0.001, fliplr=0, degrees=3, copy_paste=0.3`
+- Epoci: 50 
 
 **Îmbunătățiri cheie:**
-1. [Prima îmbunătățire - ex: adăugare strat hidden → +5% accuracy]
-2. [A doua îmbunătățire - ex: augmentări domeniu → +3% F1]
-3. [A treia îmbunătățire - ex: threshold personalizat → -60% FN]
-
+1. Schimbare learning rate și optimizer
+2. Adăugare parametri de regualizare (`label_smoothing`)
+3. Scădere batch size
 
 ---
 
@@ -290,10 +291,10 @@ Generați și salvați în `docs/optimization/`:
 
 Salvați în `docs/results/`:
 
-- [ ] `confusion_matrix_optimized.png` - Confusion matrix model final
-- [ ] `learning_curves_final.png` - Loss și accuracy vs. epochs
+- [X] `confusion_matrix_optimized.png` - Confusion matrix model final
+- [X] `learning_curves_final.png` - Loss și accuracy vs. epochs
 - [ ] `metrics_evolution.png` - Evoluție metrici Etapa 4 → 5 → 6
-- [ ] `example_predictions.png` - Grid cu 9+ exemple (correct + greșite)
+- [X] `example_predictions.png` - Grid cu 9+ exemple (correct + greșite)
 
 ---
 

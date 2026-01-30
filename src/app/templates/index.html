@@ -8,6 +8,11 @@
             rel="stylesheet"
             href="{{ url_for('static', filename='style.css') }}"
         />
+        <!-- FontAwesome for Dashboard Icons -->
+        <link
+            rel="stylesheet"
+            href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+        />
     </head>
     <body>
         <div class="header">
@@ -22,6 +27,13 @@
                     onclick="openTab(event, 'LiveTab')"
                 >
                     📷 Live Webcam
+                </button>
+                <!-- New Dashboard Tab Button -->
+                <button
+                    class="tab-btn"
+                    onclick="openTab(event, 'DashboardTab')"
+                >
+                    🚗 Vehicle Dashboard
                 </button>
                 <button class="tab-btn" onclick="openTab(event, 'UploadTab')">
                     📤 Image Upload
@@ -63,7 +75,7 @@
                                 <label for="confSlider"
                                     >Confidence Threshold:
                                     <span id="confValue" class="value-display"
-                                        >0.50</span
+                                        >0.70</span
                                     ></label
                                 >
                                 <input
@@ -72,7 +84,7 @@
                                     min="0.01"
                                     max="1.0"
                                     step="0.01"
-                                    value="0.50"
+                                    value="0.7"
                                 />
                             </div>
 
@@ -111,7 +123,82 @@
                 </div>
             </div>
 
-            <!-- Tab 2: Image Upload -->
+            <!-- Tab 2: Vehicle Dashboard (New) -->
+            <div id="DashboardTab" class="tab-content" style="display: none">
+                <div class="dashboard-grid">
+                    <!-- Video Feed (Smaller) -->
+                    <div class="dash-video">
+                        <h3>Forward Camera</h3>
+                        <img src="{{ url_for('video_feed') }}" alt="Dash Cam" />
+                    </div>
+
+                    <!-- Instrument Cluster -->
+                    <div class="dash-cluster">
+                        <!-- Turn Signals -->
+                        <div class="turn-signals">
+                            <div id="leftSignal" class="blinker">
+                                <i class="fas fa-arrow-left"></i>
+                            </div>
+                            <div id="rightSignal" class="blinker">
+                                <i class="fas fa-arrow-right"></i>
+                            </div>
+                        </div>
+
+                        <!-- Speedometer Gauge -->
+                        <div class="speedometer">
+                            <div class="gauge-body">
+                                <div class="gauge-fill"></div>
+                                <div class="gauge-cover">
+                                    <span id="currentSpeed">0</span>
+                                    <span class="unit">km/h</span>
+                                </div>
+                                <div class="needle" id="speedNeedle"></div>
+                            </div>
+                            <div class="limit-indicator">
+                                Limit: <span id="speedLimitVal">50</span>
+                            </div>
+                        </div>
+
+                        <!-- Action Display -->
+                        <div class="action-display">
+                            <h3>Vehicle Status</h3>
+                            <div id="actionText" class="action-text">
+                                CRUISING
+                            </div>
+                        </div>
+
+                        <!-- Detected Sign Image -->
+                        <div class="sign-display">
+                            <h3>Last Detected Sign</h3>
+                            <div class="sign-box" id="signBox">
+                                <!-- Standard Image -->
+                                <img
+                                    id="detectedSignImg"
+                                    src=""
+                                    alt="No Sign"
+                                    style="display: none"
+                                />
+                                <!-- CSS Rendered Sign (Hidden by default) -->
+                                <div
+                                    id="cssSign"
+                                    class="css-sign-circle"
+                                    style="display: none"
+                                >
+                                    <span id="cssSignText" class="css-sign-text"
+                                        >--</span
+                                    >
+                                </div>
+                                <span id="signPlaceholder"
+                                    >Waiting for sign...</span
+                                >
+                            </div>
+                            <div id="signName" class="sign-name">--</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab 3: Image Upload -->
             <div id="UploadTab" class="tab-content" style="display: none">
                 <div class="upload-container">
                     <div class="upload-controls">
@@ -137,7 +224,7 @@
                 </div>
             </div>
 
-            <!-- Tab 3: System Logs -->
+            <!-- Tab 4: System Logs -->
             <div id="LogsTab" class="tab-content" style="display: none">
                 <div class="logs-container">
                     <div class="logs-header-row">
@@ -190,6 +277,111 @@ Loading logs...</pre
                 document.getElementById(tabName).style.display = "block";
                 evt.currentTarget.className += " active";
             }
+
+            // --- DASHBOARD LOGIC ---
+            function updateDashboard() {
+                if (
+                    document.getElementById("DashboardTab").style.display ===
+                    "none"
+                )
+                    return;
+
+                fetch("/get_vehicle_state")
+                    .then((response) => response.json())
+                    .then((data) => {
+                        // Update Speedometer
+                        document.getElementById("currentSpeed").innerText =
+                            data.current_speed;
+                        document.getElementById("speedLimitVal").innerText =
+                            data.speed_limit;
+
+                        // Rotate Needle (0km/h = -90deg, 180km/h = 90deg)
+                        let rotation = (data.current_speed / 180) * 180 - 90;
+                        document.getElementById("speedNeedle").style.transform =
+                            `translateX(-50%) rotate(${rotation}deg)`;
+
+                        // Update Action Text
+                        const actText = document.getElementById("actionText");
+                        actText.innerText = data.action;
+                        if (data.action.includes("BRAKE"))
+                            actText.style.color = "red";
+                        else if (data.action.includes("CAUTION"))
+                            actText.style.color = "orange";
+                        else actText.style.color = "#00ffcc";
+
+                        // Update Blinkers
+                        const l = document.getElementById("leftSignal");
+                        const r = document.getElementById("rightSignal");
+                        l.className =
+                            "blinker" +
+                            (data.turn_signal === "left" ? " active" : "");
+                        r.className =
+                            "blinker" +
+                            (data.turn_signal === "right" ? " active" : "");
+
+                        // --- SIGN DISPLAY LOGIC ---
+                        const signImg =
+                            document.getElementById("detectedSignImg");
+                        const cssSign = document.getElementById("cssSign");
+                        const cssText = document.getElementById("cssSignText");
+                        const signName = document.getElementById("signName");
+                        const place =
+                            document.getElementById("signPlaceholder");
+
+                        if (data.last_sign_class) {
+                            place.style.display = "none";
+                            signName.innerText = data.last_sign_class;
+
+                            // Check for Speed or Weight Limit (CSS Render)
+                            let isCssSign = false;
+                            let displayText = "";
+
+                            if (
+                                data.last_sign_class.includes("forb_speed_over")
+                            ) {
+                                isCssSign = true;
+                                displayText = data.last_sign_class
+                                    .split("_")
+                                    .pop(); // Get '30', '50', etc.
+                            } else if (
+                                data.last_sign_class.includes(
+                                    "forb_weight_over",
+                                )
+                            ) {
+                                isCssSign = true;
+                                displayText = data.last_sign_class
+                                    .split("_")
+                                    .pop(); // Get '3.5t'
+                            }
+
+                            if (isCssSign) {
+                                // Show CSS Sign
+                                signImg.style.display = "none";
+                                cssSign.style.display = "flex";
+                                cssText.innerText = displayText;
+
+                                // Adjust font size for longer text (e.g. 3.5t or 100)
+                                cssText.className = "css-sign-text"; // Reset
+                                if (displayText.length >= 3) {
+                                    cssText.classList.add(
+                                        displayText.includes("t")
+                                            ? "long-text"
+                                            : "three-digits",
+                                    );
+                                }
+                            } else {
+                                // Show Image from Folder
+                                cssSign.style.display = "none";
+                                signImg.src =
+                                    "/static/signs/" +
+                                    data.last_sign_class +
+                                    ".png";
+                                signImg.style.display = "block";
+                            }
+                        }
+                    });
+            }
+            setInterval(updateDashboard, 500); // Update every 500ms
 
             // Live Controls Logic
             const slider = document.getElementById("confSlider");

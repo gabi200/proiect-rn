@@ -1,21 +1,21 @@
+import glob
 import json
 import os
+import shutil
 
 import numpy as np
 import pandas as pd
 from ultralytics import YOLO
 
 # --- Configuration ---
-# Path to your trained weights
 MODEL_PATH = "models/optimized_model.pt"
-# Dataset config
 DATA_CONFIG = "dataset_config.yaml"
-# Directory to save results
 OUTPUT_DIR = "evaluation_results"
+TEST_IMAGES_DIR = "data/test/images"  # Point this to your actual test images folder
+MAX_VISUAL_SAMPLES = 150  # How many prediction images you want to save
 
 
 def main():
-    # 1. Setup
     if not os.path.exists(MODEL_PATH):
         print(f"❌ Error: Model not found at {MODEL_PATH}")
         return
@@ -29,22 +29,56 @@ def main():
         print(f"❌ Error loading model: {e}")
         return
 
-    # 2. Run Evaluation (on Test set)
-    print("\nStarting evaluation on 'test' split...")
-    # split='test' forces it to use the test set defined in yaml.
-    # plots=True ensures standard confusion matrix images are generated internally if you want them later.
-    metrics = model.val(data=DATA_CONFIG, split="test", plots=True, save_json=True)
+    # 1. Run Standard Evaluation (Metrics & Confusion Matrix)
+    print("\n--- Phase 1: Standard Evaluation ---")
+    metrics = model.val(
+        data=DATA_CONFIG,
+        split="test",
+        plots=True,
+        save_json=True,
+        project=OUTPUT_DIR,
+        name="metrics_run",
+        exist_ok=True,
+    )
 
-    # 3. Extract and Print Standard Metrics
-    print("\n" + "=" * 30)
-    print("   EVALUATION RESULTS")
-    print("=" * 30)
+    # 2. Run Visual Prediction (Generate More Samples)
+    print("\n--- Phase 2: Generating Visual Samples ---")
+    visual_output_dir = os.path.join(OUTPUT_DIR, "visual_predictions")
+    if os.path.exists(visual_output_dir):
+        shutil.rmtree(visual_output_dir)  # Clean previous run
 
-    # mAP50-95 (Mean Average Precision at IoU 0.50:0.95)
+    # Get list of test images
+    test_images = glob.glob(os.path.join(TEST_IMAGES_DIR, "*.*"))
+    test_images = [
+        f for f in test_images if f.lower().endswith((".jpg", ".jpeg", ".png", ".bmp"))
+    ]
+
+    if len(test_images) > 0:
+        # Limit to MAX_VISUAL_SAMPLES to avoid filling disk if test set is huge
+        sample_images = test_images[:MAX_VISUAL_SAMPLES]
+        print(f"Running inference on {len(sample_images)} test images...")
+
+        # Run prediction
+        model.predict(
+            source=sample_images,
+            save=True,
+            project=OUTPUT_DIR,
+            name="visual_predictions",
+            conf=0.25,  # Confidence threshold for visualization
+            iou=0.45,
+            exist_ok=True,
+        )
+        print(
+            f"✅ Prediction images saved to: {os.path.join(OUTPUT_DIR, 'visual_predictions')}"
+        )
+    else:
+        print(f"⚠️ No images found in {TEST_IMAGES_DIR}. Skipping visual generation.")
+
+    # 3. Save Metrics & CSVs (Same as before)
+    print("\n--- Phase 3: Saving Metrics ---")
+
     map50_95 = metrics.box.map
-    # mAP50 (Mean Average Precision at IoU 0.50)
     map50 = metrics.box.map50
-    # Precision and Recall (averaged)
     precision = metrics.box.mp
     recall = metrics.box.mr
 
@@ -53,7 +87,6 @@ def main():
     print(f"Precision  : {precision:.4f}")
     print(f"Recall     : {recall:.4f}")
 
-    # Save scalar metrics to JSON
     metrics_dict = {
         "map50_95": map50_95,
         "map50": map50,
@@ -65,53 +98,28 @@ def main():
     json_path = os.path.join(OUTPUT_DIR, "metrics_summary.json")
     with open(json_path, "w") as f:
         json.dump(metrics_dict, f, indent=4)
-    print(f"Scalar metrics saved to: {json_path}")
 
-    # 4. Extract Confusion Matrix to CSV
-    print("\nGenerating Confusion Matrix CSV...")
-
+    # Confusion Matrix Extraction
     try:
-        # Access the raw confusion matrix from the validator metrics
-        # The matrix is typically shape (nc + 1, nc + 1) to include background
         cm_array = metrics.confusion_matrix.matrix
-
-        # Get class names
         names = model.names
-        # Ensure names dictionary is sorted by ID to match matrix index
         class_names = [names[i] for i in sorted(names.keys())]
 
-        # The confusion matrix in Ultralytics often includes a "background" row/col at the end
-        # representing False Positives (background detected as object)
-        # and False Negatives (object detected as background/missed).
         if cm_array.shape[0] == len(class_names) + 1:
             class_names.append("background")
 
-        # Create DataFrame
         df_cm = pd.DataFrame(cm_array, index=class_names, columns=class_names)
+        df_cm.to_csv(os.path.join(OUTPUT_DIR, "confusion_matrix.csv"))
 
-        # Save to CSV
-        csv_path = os.path.join(OUTPUT_DIR, "confusion_matrix.csv")
-        df_cm.to_csv(csv_path)
-        print(f" Confusion Matrix CSV saved to: {csv_path}")
-
-        # Optional: Save a normalized version as well
-        # Normalize by row (True Label counts)
         row_sums = cm_array.sum(axis=1, keepdims=True)
-        # Avoid division by zero
         row_sums[row_sums == 0] = 1
         norm_cm_array = cm_array / row_sums
-
         df_norm = pd.DataFrame(norm_cm_array, index=class_names, columns=class_names)
-        norm_csv_path = os.path.join(OUTPUT_DIR, "confusion_matrix_normalized.csv")
-        df_norm.to_csv(norm_csv_path)
-        print(f" Normalized Confusion Matrix CSV saved to: {norm_csv_path}")
+        df_norm.to_csv(os.path.join(OUTPUT_DIR, "confusion_matrix_normalized.csv"))
+        print(f"✅ Confusion Matrix CSVs saved.")
 
-    except AttributeError:
-        print(
-            " Warning: Could not extract confusion matrix directly. Ensure you are using a recent version of Ultralytics."
-        )
     except Exception as e:
-        print(f"❌ Error generating CSV: {e}")
+        print(f"❌ Error extracting confusion matrix: {e}")
 
     print("\nDone.")
 

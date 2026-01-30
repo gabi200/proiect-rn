@@ -52,6 +52,19 @@ app = Flask(__name__)
 # Store recent detections for the UI log (Max 50 items)
 detection_history = deque(maxlen=50)
 
+# Vehicle State (Simulated)
+vehicle_state = {
+    "speed_limit": 50,  # Default limit
+    "current_speed": 45,  # Simulated car speed
+    "action": "CRUISING",  # Cruising, Braking, Turning
+    "turn_signal": "none",  # left, right, none
+    "last_sign_class": None,  # To show the icon
+}
+
+# Timestamp of last valid detection for reset logic
+last_detection_time = 0
+RESET_TIMEOUT = 5.0  # Seconds before resetting state
+
 # Initialize YOLO Model
 try:
     print(f"Loading model from {MODEL_PATH}...")
@@ -88,6 +101,85 @@ def get_error_frame(message):
     return frame
 
 
+def update_vehicle_logic(detected_class):
+    """
+    Translates a traffic sign class into vehicle control commands.
+    """
+    global vehicle_state, last_detection_time
+
+    last_detection_time = time.time()
+
+    # 1. Speed Limits
+    if "speed_over" in detected_class:
+        try:
+            # Extract number from string like 'forb_speed_over_30'
+            limit = int(detected_class.split("_")[-1])
+            vehicle_state["speed_limit"] = limit
+            vehicle_state["action"] = f"SET LIMIT: {limit}"
+            vehicle_state["current_speed"] = min(vehicle_state["current_speed"], limit)
+        except:
+            pass  # Failed to parse
+
+    # 2. Stop / Give Way
+    elif "stop" in detected_class or "forb_ahead" in detected_class:
+        vehicle_state["current_speed"] = 0
+        vehicle_state["action"] = "STOP"
+    elif "give_way" in detected_class:
+        vehicle_state["current_speed"] = max(0, vehicle_state["current_speed"] - 10)
+        vehicle_state["action"] = "YIELDING"
+
+    # 3. Turn Signals
+    elif (
+        "left" in detected_class
+        and "mand" in detected_class
+        and not "straight" in detected_class
+    ):
+        vehicle_state["turn_signal"] = "left"
+        vehicle_state["action"] = "PREPARE TURN LEFT"
+    elif (
+        "right" in detected_class
+        and "mand" in detected_class
+        and not "straight" in detected_class
+    ):
+        vehicle_state["turn_signal"] = "right"
+        vehicle_state["action"] = "PREPARE TURN RIGHT"
+
+    # 4. Warnings
+    elif (
+        "warn" in detected_class
+        or "crosswalk" in detected_class
+        or "roundabout" in detected_class
+    ):
+        vehicle_state["action"] = "CAUTION"
+        if vehicle_state["current_speed"] > 20:
+            vehicle_state["current_speed"] = max(
+                20, vehicle_state["current_speed"] - 20
+            )
+    elif "highway" in detected_class:
+        vehicle_state["action"] = "HIGHWAY"
+        vehicle_state["speed_limit"] = 130
+        vehicle_state["current_speed"] = max(130, vehicle_state["current_speed"])
+
+    # Update last sign for UI display
+    vehicle_state["last_sign_class"] = detected_class
+
+
+def check_reset_condition():
+    """Resets vehicle state if no signs detected for RESET_TIMEOUT."""
+    global vehicle_state, last_detection_time
+    if time.time() - last_detection_time > RESET_TIMEOUT:
+        if (
+            vehicle_state["action"] != "CRUISING"
+        ):  # Only log/change if we are actually resetting something
+            vehicle_state = {
+                "speed_limit": 50,
+                "current_speed": 50,  # Return to normal cruise speed
+                "action": "CRUISING",
+                "turn_signal": "none",
+                "last_sign_class": None,
+            }
+
+
 def process_frame(frame, conf_thresh):
     """
     Runs inference on a frame and draws bounding boxes.
@@ -102,6 +194,9 @@ def process_frame(frame, conf_thresh):
 
         current_detections = []
 
+        # Check reset logic every frame
+        check_reset_condition()
+
         for r in results:
             boxes = r.boxes
             for box in boxes:
@@ -110,6 +205,10 @@ def process_frame(frame, conf_thresh):
                 conf = math.ceil((box.conf[0] * 100)) / 100
                 cls = int(box.cls[0])
                 current_class = model.names[cls]
+
+                # Update Vehicle Logic ONLY if confidence meets threshold
+                if conf >= conf_thresh:
+                    update_vehicle_logic(current_class)
 
                 # Draw Box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -138,12 +237,10 @@ def process_frame(frame, conf_thresh):
                 }
                 current_detections.append(detection_info)
 
-        # Update global history with unique detections from this frame (to avoid spamming the log)
-        # We assume if the class and conf are identical to the last entry, it's the same object
+        # Update global history
         for det in current_detections:
             if not detection_history or (detection_history[0]["class"] != det["class"]):
                 detection_history.appendleft(det)
-                # Log detection to the central logging system
                 log.info(f"Detected: {det['class']} (Conf: {det['conf']})")
 
     except Exception as e:
@@ -165,7 +262,6 @@ def capture_frames():
         return
 
     print("Webcam opened successfully.")
-
     prev_time = 0
 
     while True:
@@ -173,32 +269,33 @@ def capture_frames():
         if not success:
             with lock:
                 outputFrame = get_error_frame("Camera disconnected")
-                log.warning("Camera disconnected")
             time.sleep(1)
             continue
 
         # Only run inference if enabled in settings
         if inference_enabled:
             frame = process_frame(frame, conf_threshold)
+        else:
+            # Even if inference disabled, we might want to reset state if timeout passed
+            check_reset_condition()
 
         # Calculate FPS
         curr_time = time.time()
         fps = 1 / (curr_time - prev_time) if prev_time != 0 else 0
         prev_time = curr_time
 
-        # Draw FPS on frame (Green text with black outline for visibility)
+        # Draw FPS
         fps_text = f"FPS: {fps:.1f}"
         cv2.putText(
             frame, fps_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 0), 4
-        )  # Outline
+        )
         cv2.putText(
             frame, fps_text, (20, 40), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2
-        )  # Text
+        )
 
         with lock:
             outputFrame = frame.copy()
 
-        # Minimal sleep to prevent pure busy loop, but kept low for high FPS
         time.sleep(0.001)
 
 
@@ -268,14 +365,11 @@ def update_settings():
 
 @app.route("/upload_image", methods=["POST"])
 def upload_image():
-    log.info("Started image upload")
     if "file" not in request.files:
-        log.warning("No file part")
         return jsonify({"error": "No file part"})
 
     file = request.files["file"]
     if file.filename == "":
-        log.warning("No selected file")
         return jsonify({"error": "No selected file"})
 
     try:
@@ -290,7 +384,6 @@ def upload_image():
         _, buffer = cv2.imencode(".jpg", processed_img)
         img_base64 = base64.b64encode(buffer).decode("utf-8")
 
-        log.info("Image processed successfully")
         return jsonify({"status": "success", "image": img_base64})
 
     except Exception as e:
@@ -300,31 +393,26 @@ def upload_image():
 
 @app.route("/get_detections")
 def get_detections():
-    """Returns the list of recent detections."""
     return jsonify(list(detection_history))
 
 
 @app.route("/get_app_log")
 def get_app_log():
-    """Reads the log file and returns its content."""
     content = ""
     try:
         if os.path.exists(LOG_FILE_PATH):
             with open(LOG_FILE_PATH, "r", encoding="utf-8") as f:
-                # Read the last 200 lines to keep the payload size manageable
                 lines = f.readlines()
                 content = "".join(lines[-200:])
         else:
             content = "Log file not found."
     except Exception as e:
         content = f"Error reading log file: {e}"
-
     return jsonify({"content": content})
 
 
 @app.route("/download_logs")
 def download_logs():
-    """Downloads the current log file."""
     try:
         if os.path.exists(LOG_FILE_PATH):
             return send_file("../../" + LOG_FILE_PATH, as_attachment=True)
@@ -336,21 +424,15 @@ def download_logs():
 
 @app.route("/snapshot")
 def snapshot():
-    """Takes a snapshot of the current video frame."""
     with lock:
         if outputFrame is None:
             return "No frame available", 404
-        # Encode the current frame as a JPEG
         _, buffer = cv2.imencode(".jpg", outputFrame)
-
-    # Generate a filename with timestamp
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    filename = f"snapshot_{timestamp}.jpg"
-
     return Response(
         buffer.tobytes(),
         mimetype="image/jpeg",
-        headers={"Content-Disposition": f"attachment;filename={filename}"},
+        headers={"Content-Disposition": f"attachment;filename=snap_{timestamp}.jpg"},
     )
 
 
@@ -358,6 +440,12 @@ def snapshot():
 def dataset_stats_img():
     img_buffer = analysis.generate_analysis_image(LABELS_DIR)
     return send_file(img_buffer, mimetype="image/png")
+
+
+# New route for vehicle dashboard
+@app.route("/get_vehicle_state")
+def get_vehicle_state():
+    return jsonify(vehicle_state)
 
 
 if __name__ == "__main__":

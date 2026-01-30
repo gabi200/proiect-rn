@@ -49,7 +49,8 @@ body {
 }
 
 .tab-btn.active {
-    background-color: #2a2a2a; /* Match content bg */
+    background-color: #2a2a2a;
+    /* Match content bg */
     color: #00ffcc;
     border-bottom: 2px solid #00ffcc;
 }
@@ -57,7 +58,8 @@ body {
 .tab-content {
     background-color: #2a2a2a;
     padding: 20px;
-    border-radius: 0 8px 8px 8px; /* Round bottom corners */
+    border-radius: 0 8px 8px 8px;
+    /* Round bottom corners */
     min-height: 500px;
 }
 
@@ -102,20 +104,24 @@ img {
 .control-group {
     margin-bottom: 25px;
 }
+
 label {
     display: block;
     margin-bottom: 8px;
     font-weight: bold;
 }
+
 input[type="range"] {
     width: 100%;
     cursor: pointer;
 }
+
 .value-display {
     font-family: monospace;
     color: #00ffcc;
     float: right;
 }
+
 .desc {
     color: #888;
     font-size: 0.9em;
@@ -134,7 +140,8 @@ input[type="range"] {
     font-size: 16px;
     margin-left: 10px;
     transition: all 0.2s;
-    text-decoration: none; /* For link buttons */
+    text-decoration: none;
+    /* For link buttons */
     display: inline-block;
 }
 
@@ -161,7 +168,8 @@ input[type="range"] {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    max-height: 400px; /* Limit height */
+    max-height: 400px;
+    /* Limit height */
 }
 
 .detection-log-box h3 {
@@ -200,6 +208,7 @@ input[type="range"] {
 .detection-item:last-child {
     border-bottom: none;
 }
+
 .det-class {
     color: #fff;
     font-weight: bold;
@@ -250,15 +259,19 @@ input[type="range"] {
 input:checked + .slider {
     background-color: #00ffcc;
 }
+
 input:focus + .slider {
     box-shadow: 0 0 1px #00ffcc;
 }
+
 input:checked + .slider:before {
     transform: translateX(26px);
 }
+
 .slider.round {
     border-radius: 34px;
 }
+
 .slider.round:before {
     border-radius: 50%;
 }
@@ -346,7 +359,8 @@ input:checked + .slider:before {
     border: 1px solid #444;
     overflow-y: scroll;
     flex-grow: 1;
-    white-space: pre-wrap; /* Preserve formatting but wrap lines */
+    white-space: pre-wrap;
+    /* Preserve formatting but wrap lines */
     font-size: 0.9em;
     box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
 }
@@ -372,4 +386,210 @@ input:checked + .slider:before {
     max-width: 100%;
     height: auto;
     border-radius: 4px;
+}
+
+/* --- DASHBOARD STYLES --- */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+}
+
+.dash-video img {
+    border: 2px solid #00ffcc;
+    box-shadow: 0 0 15px rgba(0, 255, 204, 0.2);
+}
+
+.dash-cluster {
+    background-color: #222;
+    border-radius: 12px;
+    padding: 20px;
+    border: 1px solid #444;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+}
+
+/* Turn Signals */
+.turn-signals {
+    display: flex;
+    justify-content: space-between;
+    width: 80%;
+    margin-bottom: 20px;
+}
+
+.blinker {
+    font-size: 32px;
+    color: #333;
+}
+
+.blinker.active {
+    color: #00ff00;
+    animation: blink 0.5s infinite;
+}
+
+@keyframes blink {
+    50% {
+        opacity: 0;
+    }
+}
+
+/* Speedometer Gauge */
+.speedometer {
+    position: relative;
+    width: 200px;
+    height: 100px;
+    /* Half circle */
+    margin-bottom: 20px;
+}
+
+.gauge-body {
+    width: 100%;
+    height: 100%;
+    background: #333;
+    border-top-left-radius: 100px;
+    border-top-right-radius: 100px;
+    border: 2px solid #555;
+    border-bottom: 0;
+    position: relative;
+    overflow: hidden;
+}
+
+.gauge-fill {
+    width: 100%;
+    height: 100%;
+    background: conic-gradient(from 180deg, #00ffcc 0deg, #ff0000 180deg);
+    opacity: 0.2;
+}
+
+.gauge-cover {
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 140px;
+    height: 70px;
+    background: #222;
+    border-top-left-radius: 70px;
+    border-top-right-radius: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 10px;
+    z-index: 2;
+}
+
+#currentSpeed {
+    font-size: 40px;
+    font-weight: bold;
+    color: #fff;
+    line-height: 1;
+}
+
+.unit {
+    font-size: 14px;
+    color: #888;
+}
+
+.needle {
+    width: 4px;
+    height: 90px;
+    background: red;
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform-origin: bottom center;
+    transform: translateX(-50%) rotate(-90deg);
+    /* Start at 0 speed */
+    z-index: 1;
+    transition: transform 0.5s ease-out;
+}
+
+.limit-indicator {
+    text-align: center;
+    margin-top: 10px;
+    font-size: 14px;
+    color: #00ffcc;
+}
+
+/* Action Display */
+.action-display {
+    text-align: center;
+    margin: 20px 0;
+    background: #111;
+    width: 100%;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+.action-text {
+    font-size: 24px;
+    font-weight: bold;
+    color: #00ffcc;
+    letter-spacing: 1px;
+}
+
+/* Sign Display */
+.sign-display {
+    text-align: center;
+}
+
+.sign-box {
+    width: 120px;
+    height: 120px;
+    background: #333;
+    border: 2px dashed #555;
+    border-radius: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 auto 10px auto;
+    overflow: hidden;
+    position: relative; /* Added for CSS-rendered signs */
+}
+
+.sign-box img {
+    width: 100%;
+    height: auto;
+}
+
+#signPlaceholder {
+    color: #666;
+    font-size: 12px;
+}
+
+/* CSS-Rendered Speed Limit Sign */
+.css-sign-circle {
+    width: 100px;
+    height: 100px;
+    border-radius: 50%;
+    background-color: white;
+    border: 12px solid #cc0000;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.css-sign-text {
+    font-family: "Arial", sans-serif;
+    font-weight: bold;
+    color: black;
+    font-size: 40px; /* Default for 2 digits */
+    line-height: 1;
+}
+
+/* Specific text sizes */
+.css-sign-text.long-text {
+    font-size: 24px;
+} /* For 3.5t */
+.css-sign-text.three-digits {
+    font-size: 32px;
+} /* For 100/130 */
+
+.sign-name {
+    color: #fff;
+    font-family: monospace;
 }
