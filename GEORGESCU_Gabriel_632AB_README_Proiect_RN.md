@@ -16,7 +16,7 @@
 ### Rezultate Cheie (Versiunea Finală vs Etapa 6)
 
 | Metric | Țintă Minimă |  Rezultat Final | Status |
-|--------|--------------|------------------|----------------|--------------|--------|
+|--------|--------------|------------------|----------------|
 | Accuracy (Test Set) | ≥70%  | 95.7% | ✓ |
 | F1-Score (Macro) | ≥0.65 | 0.91  | ✓ |
 | Latență Inferență | <50 ms  | 17.6 ms | ✓ |
