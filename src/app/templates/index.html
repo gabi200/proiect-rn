@@ -28,7 +28,6 @@
                 >
                     📷 Live Webcam
                 </button>
-                <!-- New Dashboard Tab Button -->
                 <button
                     class="tab-btn"
                     onclick="openTab(event, 'DashboardTab')"
@@ -75,7 +74,7 @@
                                 <label for="confSlider"
                                     >Confidence Threshold:
                                     <span id="confValue" class="value-display"
-                                        >0.70</span
+                                        >0.50</span
                                     ></label
                                 >
                                 <input
@@ -84,7 +83,7 @@
                                     min="0.01"
                                     max="1.0"
                                     step="0.01"
-                                    value="0.7"
+                                    value="0.50"
                                 />
                             </div>
 
@@ -126,10 +125,58 @@
             <!-- Tab 2: Vehicle Dashboard (New) -->
             <div id="DashboardTab" class="tab-content" style="display: none">
                 <div class="dashboard-grid">
-                    <!-- Video Feed (Smaller) -->
-                    <div class="dash-video">
-                        <h3>Forward Camera</h3>
-                        <img src="{{ url_for('video_feed') }}" alt="Dash Cam" />
+                    <!-- Left Column: Video & Hardware Settings -->
+                    <div class="dash-left-col">
+                        <div class="dash-video">
+                            <h3>Forward Camera</h3>
+                            <img
+                                src="{{ url_for('video_feed') }}"
+                                alt="Dash Cam"
+                            />
+                        </div>
+
+                        <!-- Hardware Control Section -->
+                        <div class="hardware-controls">
+                            <h3>Hardware Control</h3>
+                            <div class="control-group">
+                                <label class="switch-label">
+                                    <span>Enable Hardware</span>
+                                    <label class="switch">
+                                        <input
+                                            type="checkbox"
+                                            id="hardwareToggle"
+                                            onchange="toggleHardware()"
+                                        />
+                                        <span class="slider round"></span>
+                                    </label>
+                                </label>
+                            </div>
+                            <div
+                                class="serial-select-group"
+                                id="serialGroup"
+                                style="opacity: 0.5; pointer-events: none"
+                            >
+                                <select
+                                    id="serialPortSelect"
+                                    class="serial-select"
+                                >
+                                    <option value="">Select Port...</option>
+                                </select>
+                                <button
+                                    class="action-btn small-btn"
+                                    onclick="refreshPorts()"
+                                >
+                                    🔄
+                                </button>
+                            </div>
+                            <div
+                                id="hwStatus"
+                                class="status-msg"
+                                style="font-size: 0.8em; margin-top: 5px"
+                            >
+                                Disconnected
+                            </div>
+                        </div>
                     </div>
 
                     <!-- Instrument Cluster -->
@@ -259,6 +306,15 @@ Loading logs...</pre
             </div>
         </div>
 
+        <!-- Hidden Audio Element for Alarm -->
+        <audio id="alarmSound" src="/static/alarm.mp3" preload="auto"></audio>
+        <!-- Hidden Chime for blocked camera alert -->
+        <audio
+            id="cameraBlockedChime"
+            src="/static/chime.mp3"
+            preload="auto"
+        ></audio>
+
         <script>
             // Tab Switching Logic
             function openTab(evt, tabName) {
@@ -289,6 +345,32 @@ Loading logs...</pre
                 fetch("/get_vehicle_state")
                     .then((response) => response.json())
                     .then((data) => {
+                        // Check for Camera Blocked state
+                        const alarm = document.getElementById("alarmSound");
+                        const chime =
+                            document.getElementById("cameraBlockedChime");
+
+                        if (data.camera_blocked) {
+                            document.body.style.backgroundColor = "#300"; // Red tint bg
+                            if (chime.paused) {
+                                chime
+                                    .play()
+                                    .catch((e) =>
+                                        console.log("Chime play failed:", e),
+                                    );
+                            }
+                            // Stop standard alarm if running, prioritizing chime for blocked cam? Or run both?
+                            // Assuming "alarm" is general hazard and "chime" is specifically for blocked cam.
+                            // If blocked camera triggers hazards in backend, keep alarm logic or replace with chime.
+                            // Per request: "play a chime that alerts the driver"
+                        } else {
+                            document.body.style.backgroundColor = "#1a1a1a"; // Reset bg
+                            if (!chime.paused) {
+                                chime.pause();
+                                chime.currentTime = 0;
+                            }
+                        }
+
                         // Update Speedometer
                         document.getElementById("currentSpeed").innerText =
                             data.current_speed;
@@ -303,7 +385,9 @@ Loading logs...</pre
                         // Update Action Text
                         const actText = document.getElementById("actionText");
                         actText.innerText = data.action;
-                        if (data.action.includes("BRAKE"))
+                        if (data.action.includes("BLOCKED"))
+                            actText.style.color = "red";
+                        else if (data.action.includes("BRAKE"))
                             actText.style.color = "red";
                         else if (data.action.includes("CAUTION"))
                             actText.style.color = "orange";
@@ -312,12 +396,19 @@ Loading logs...</pre
                         // Update Blinkers
                         const l = document.getElementById("leftSignal");
                         const r = document.getElementById("rightSignal");
-                        l.className =
-                            "blinker" +
-                            (data.turn_signal === "left" ? " active" : "");
-                        r.className =
-                            "blinker" +
-                            (data.turn_signal === "right" ? " active" : "");
+
+                        // Hazard Logic (Both blink)
+                        if (data.turn_signal === "hazard") {
+                            l.className = "blinker active";
+                            r.className = "blinker active";
+                        } else {
+                            l.className =
+                                "blinker" +
+                                (data.turn_signal === "left" ? " active" : "");
+                            r.className =
+                                "blinker" +
+                                (data.turn_signal === "right" ? " active" : "");
+                        }
 
                         // --- SIGN DISPLAY LOGIC ---
                         const signImg =
@@ -360,7 +451,7 @@ Loading logs...</pre
                                 cssSign.style.display = "flex";
                                 cssText.innerText = displayText;
 
-                                // Adjust font size for longer text (e.g. 3.5t or 100)
+                                // Adjust font size
                                 cssText.className = "css-sign-text"; // Reset
                                 if (displayText.length >= 3) {
                                     cssText.classList.add(
@@ -382,6 +473,75 @@ Loading logs...</pre
                     });
             }
             setInterval(updateDashboard, 500); // Update every 500ms
+
+            // --- HARDWARE CONTROL LOGIC ---
+            function refreshPorts() {
+                fetch("/list_serial_ports")
+                    .then((r) => r.json())
+                    .then((ports) => {
+                        const select =
+                            document.getElementById("serialPortSelect");
+                        select.innerHTML =
+                            '<option value="">Select Port...</option>';
+                        ports.forEach((port) => {
+                            const option = document.createElement("option");
+                            option.value = port;
+                            option.text = port;
+                            select.appendChild(option);
+                        });
+                    });
+            }
+
+            // Initial load
+            refreshPorts();
+
+            function toggleHardware() {
+                const toggle = document.getElementById("hardwareToggle");
+                const group = document.getElementById("serialGroup");
+                const port = document.getElementById("serialPortSelect").value;
+                const status = document.getElementById("hwStatus");
+
+                if (toggle.checked) {
+                    if (!port) {
+                        alert("Please select a serial port first.");
+                        toggle.checked = false;
+                        return;
+                    }
+
+                    // Connect
+                    fetch("/connect_serial", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ port: port }),
+                    })
+                        .then((r) => r.json())
+                        .then((data) => {
+                            if (data.success) {
+                                group.style.opacity = "0.5";
+                                group.style.pointerEvents = "none";
+                                status.innerText = "Connected: " + port;
+                                status.style.color = "#00ff00";
+                            } else {
+                                toggle.checked = false;
+                                alert("Connection failed: " + data.message);
+                            }
+                        });
+                } else {
+                    // Disconnect
+                    fetch("/disconnect_serial", { method: "POST" })
+                        .then((r) => r.json())
+                        .then((data) => {
+                            group.style.opacity = "1.0";
+                            group.style.pointerEvents = "auto";
+                            status.innerText = "Disconnected";
+                            status.style.color = "#888";
+                        });
+                }
+            }
+
+            // Enable selection UI only when disconnected (default state logic handled by toggleHardware)
+            document.getElementById("serialGroup").style.opacity = "1.0";
+            document.getElementById("serialGroup").style.pointerEvents = "auto";
 
             // Live Controls Logic
             const slider = document.getElementById("confSlider");

@@ -1,0 +1,8 @@
+{
+  "metrics": {
+    "model": "optimized_model.pt",
+    "test_accuracy": 0.957,
+    "test_f1_score_macro": 0.91,
+    "latency_ms": 17.6
+  }
+}

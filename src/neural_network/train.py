@@ -39,9 +39,9 @@ def main():
         )
     else:
         epochs = 50
-        batch = 10
+        batch = 8
         patience = 5
-        optimizer = "sgd"
+        optimizer = "Adam"
         cls = 1.5
         log.info(
             f"Using default training parameters: epochs={epochs}, batch={batch}, patience={patience}"
@@ -63,7 +63,7 @@ def main():
         optimizer=optimizer,
         cls=cls,
         cos_lr=True,
-        hsv_h=0.015,  # augumentations start
+        hsv_h=0.015,  # augmentations start
         hsv_s=0.6,
         hsv_v=0.5,
         scale=0.8,
@@ -71,6 +71,9 @@ def main():
         perspective=0.001,
         fliplr=0,  # CRITICAL
         degrees=3,
+        lr0=0.001,
+        label_smoothing=0.1,
+        copy_paste=0.3,
     )
 
     print("Validating model...")

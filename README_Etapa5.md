@@ -3,6 +3,7 @@
 
 
 
+
 # 📘 README – Etapa 5: Configurarea și Antrenarea Modelului RN
 
 **Disciplina:** Rețele Neuronale  
@@ -102,24 +103,21 @@ Completați tabelul cu hiperparametrii folosiți și **justificați fiecare aleg
 
 | **Hiperparametru** | **Valoare Aleasă** | **Justificare** |
 |--------------------|-------------------|-----------------|
-| Learning rate | 0.1| Valoare standard YOLO, este adecvată pentru learning rate optimizer `cos_LR` |
-| Batch size | 10 | Compromis memorie/stabilitate |
+| Learning rate | 0.001| Valoare adecvată pentru learning rate optimizer `cos_LR` și pentru optimizer `Adam` |
+| Batch size | 8 | Compromis memorie/stabilitate |
 | Number of epochs |  50 | Cu early stopping după 5 epoci fără îmbunătățire |
-| Optimizer | SGD (Stochastic Gradient Descent) | Oferă acuratețe sporită în task-urile de object detection |
+| Optimizer | Adam | Este adecvat în task-urile cu multe clase, în acest caz 55 de clase, dintre care unele apar mai rar. Optimizer-ul Adam modifică dinamic learning rate-ul pentru semnele rar intalnite  |
 | Loss function | Classification loss (binary cross-entropy), Box Loss | Metode standard YOLO. Parametri pentru classification loss: cls=1.5. Box loss: 7.5 (default) |
 | Activation functions | SiLU (Sigmoid Linear Unit)| Adecvat pentru object detection, inclus in YOLO |
 
 **Justificare detaliată batch size**
 
-Am ales `batch_size=10` pentru că avem N=7634 samples → 7634/11 = 694 iterații/epocă.
+Am ales `batch_size=8` pentru că avem N=7634 samples → 7634/11 = 694 iterații/epocă.
 Aceasta oferă un echilibru între:
 - Stabilitate gradient (batch prea mic → zgomot mare în gradient)
 - Memorie GPU (batch prea mare → out of memory)
 
-Batch size a fost determinat experimental. Modelul a fost antrenat pe un GPU cu 8 GB VRAM, TDP 150W. Au fost testate valori între 9 și 16, iar pentru a determina valoarea optimă am urmărit puterea consumată de GPU și utilizarea VRAM. 
-Puterea electrică consumată este indicatorul optim pentru munca efectivă realizată de GPU. Procentajul de utilizare indicat de sistemul de operare este relativ și poate fi influențat de diferiți factor (ce nuclee din GPU sunt utilizate, frecvența curentă, etc.). Este important ca utilizarea VRAM să fie <8 GB în acest caz, iar în cazul depășirii, o parte din date este stocată în memoria RAM principală. Astfel, apare un bottleneck doarece datele trebuie transferate prin magistrala PCIe, și memoria RAM este mai lentă decât cea VRAM.
-
-Pentru acest workload, puterea maximă atinsă a fost de aprox. **120W** (fluctuează 100-120W) pentru `batch_size=10`. 
+Batch size a fost determinat experimental. Modelul a fost antrenat pe un GPU cu 8 GB VRAM. Au fost testate valori între 8 și 16, iar pentru a determina valoarea optimă am urmărit puterea consumată de GPU și utilizarea VRAM-ului.
 
 **Justificare  parametri loss functions**
 
@@ -148,9 +146,9 @@ Includeți **TOATE** cerințele Nivel 1 + următoarele:
 
 Am folosit learning scheduler `cos_lr` (cosine annealing), deoarece acesta ajută în cazurile în care clasele sunt similare (de ex. un semn de limită de viteză 30 km/h vs. limită 50 km/h) și rezultă într-o acuratețe mai bună pentru această aplicație.
 
-**Augumentări relevante domeniu**
+**Augmentări relevante domeniu**
 
-Am aplicat următoarele augumentări:
+Am aplicat următoarele augmentări:
 - `hsv_h=0.015` (hue). Am setat această valoare la o valoare foarte scăzută pentru a nu schimba radical culorile, acestea fiind importante pentru identificarea tipului de acțiune (albastru = indicator de obligație, roșu = interzicere etc.)
 - `hsv_s=0.6`(saturation). Valoarea de saturație ajută la simularea diferitelor condiții de lumină sau a semnelor murdare.
 - `hsv_v=0.5`(value).  Această valoare reprezintă luminozitatea și ajută la simularea condițiilor de lumină variate.
@@ -382,11 +380,11 @@ Daca aplicația este rulată pe **Windows**, se recomandă folosirea [Python Ins
 - [ ] Confusion matrix + analiză 5 exemple greșite cu implicații
 
 ### Verificări Tehnice
-- [ ] `requirements.txt` actualizat cu toate bibliotecile noi
+- [X] `requirements.txt` actualizat cu toate bibliotecile noi
 - [X] Toate path-urile RELATIVE (nu absolute: `/Users/...` )
-- [ ] Cod nou comentat în limba română sau engleză (minimum 15%)
+- [X] Cod nou comentat în limba română sau engleză (minimum 15%)
 - [X] `git log` arată commit-uri incrementale (NU 1 commit gigantic)
-- [ ] Verificare anti-plagiat: toate punctele 1-5 respectate
+- [X] Verificare anti-plagiat: toate punctele 1-5 respectate
 
 ### Verificare State Machine (Etapa 4)
 - [X] Fluxul de inferență respectă stările din State Machine
@@ -396,9 +394,9 @@ Daca aplicația este rulată pe **Windows**, se recomandă folosirea [Python Ins
 ### Pre-Predare
 - [X] `docs/etapa5_antrenare_model.md` completat cu TOATE secțiunile
 - [X] Structură repository conformă: `docs/`, `results/`, `models/` actualizate
-- [ ] Commit: `"Etapa 5 completă – Accuracy=X.XX, F1=X.XX"`
-- [ ] Tag: `git tag -a v0.5-model-trained -m "Etapa 5 - Model antrenat"`
-- [ ] Push: `git push origin main --tags`
+- [X] Commit: `"Etapa 5 completă – Accuracy=X.XX, F1=X.XX"`
+- [X] Tag: `git tag -a v0.5-model-trained -m "Etapa 5 - Model antrenat"`
+- [X] Push: `git push origin main --tags`
 - [X] Repository accesibil (public sau privat cu acces profesori)
 
 ---

@@ -9,6 +9,8 @@ from collections import deque
 
 import cv2
 import numpy as np
+import serial
+import serial.tools.list_ports
 from flask import Flask, Response, jsonify, render_template, request, send_file
 
 # Logger setup
@@ -55,15 +57,85 @@ detection_history = deque(maxlen=50)
 # Vehicle State (Simulated)
 vehicle_state = {
     "speed_limit": 50,  # Default limit
-    "current_speed": 45,  # Simulated car speed
+    "current_speed": 50,  # Default cruising speed
     "action": "CRUISING",  # Cruising, Braking, Turning
-    "turn_signal": "none",  # left, right, none
+    "turn_signal": "none",  # left, right, none, hazard
+    "steering": "forward",  # forward, left, right
     "last_sign_class": None,  # To show the icon
+    # Internal state for delayed actions
+    "pending_turn": None,  # 'left' or 'right'
+    "signal_start_time": 0,  # Timestamp when signal started blinking
+    "camera_blocked": False,  # New state for blocked camera
 }
 
 # Timestamp of last valid detection for reset logic
 last_detection_time = 0
 RESET_TIMEOUT = 5.0  # Seconds before resetting state
+STEERING_DELAY = 2.0  # Seconds between signal start and steering change
+
+
+# Serial Port Manager
+class SerialManager:
+    def __init__(self):
+        self.ser = None
+        self.port = None
+        self.baudrate = 9600
+        self.is_connected = False
+        self.last_sent_command = ""
+
+    def connect(self, port_name):
+        try:
+            if self.ser and self.ser.is_open:
+                self.ser.close()
+
+            self.ser = serial.Serial(port_name, self.baudrate, timeout=1)
+            self.port = port_name
+            self.is_connected = True
+            log.info(f"Connected to serial port: {port_name}")
+            return True, "Connected"
+        except Exception as e:
+            self.is_connected = False
+            log.error(f"Serial connection failed: {e}")
+            return False, str(e)
+
+    def disconnect(self):
+        if self.ser and self.ser.is_open:
+            self.ser.close()
+        self.is_connected = False
+        log.info("Disconnected from serial port")
+        return True
+
+    def send_command(self, speed, turn_signal, steering):
+        """
+        Sends command in format "x;y;z"
+        x: speed (km/h)
+        y: turn signal (0-off, 1-left, 2-right, 3-hazards)
+        z: steering (0-forward, 1-left, 2-right)
+        """
+        if not self.is_connected or not self.ser:
+            return
+
+        # Map turn signal string to int
+        turn_map = {"none": 0, "left": 1, "right": 2, "hazard": 3}
+        y = turn_map.get(turn_signal, 0)
+
+        # Map steering string to int
+        steer_map = {"forward": 0, "left": 1, "right": 2}
+        z = steer_map.get(steering, 0)
+
+        command = f"{int(speed)};{y};{z}"
+
+        # Only send if state changed to avoid flooding serial buffer
+        if command != self.last_sent_command:
+            try:
+                self.ser.write(f"{command}\n".encode("utf-8"))
+                self.last_sent_command = command
+            except Exception as e:
+                log.error(f"Failed to send serial command: {e}")
+                self.is_connected = False  # Assume disconnected on write error
+
+
+serial_manager = SerialManager()
 
 # Initialize YOLO Model
 try:
@@ -101,6 +173,21 @@ def get_error_frame(message):
     return frame
 
 
+def check_camera_obstruction(frame):
+    """
+    Checks if the camera is obstructed (dark/black image).
+    Returns True if obstructed, False otherwise.
+    """
+    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+    avg_brightness = np.mean(gray)
+
+    # Threshold for "darkness" - adjust based on environment
+    # 30 is quite dark, typical for a covered lens
+    if avg_brightness < 30:
+        return True
+    return False
+
+
 def update_vehicle_logic(detected_class):
     """
     Translates a traffic sign class into vehicle control commands.
@@ -115,69 +202,97 @@ def update_vehicle_logic(detected_class):
             # Extract number from string like 'forb_speed_over_30'
             limit = int(detected_class.split("_")[-1])
             vehicle_state["speed_limit"] = limit
+
+            # Logic: Set current speed to limit but ensure >= 0.
+            vehicle_state["current_speed"] = limit
             vehicle_state["action"] = f"SET LIMIT: {limit}"
-            vehicle_state["current_speed"] = min(vehicle_state["current_speed"], limit)
         except:
-            pass  # Failed to parse
+            pass
 
     # 2. Stop / Give Way
-    elif "stop" in detected_class or "forb_ahead" in detected_class:
+    elif "stop" in detected_class:
         vehicle_state["current_speed"] = 0
-        vehicle_state["action"] = "STOP"
+        vehicle_state["action"] = "EMERGENCY BRAKE"
     elif "give_way" in detected_class:
         vehicle_state["current_speed"] = max(0, vehicle_state["current_speed"] - 10)
         vehicle_state["action"] = "YIELDING"
 
-    # 3. Turn Signals
-    elif (
-        "left" in detected_class
-        and "mand" in detected_class
-        and not "straight" in detected_class
-    ):
-        vehicle_state["turn_signal"] = "left"
-        vehicle_state["action"] = "PREPARE TURN LEFT"
-    elif (
-        "right" in detected_class
-        and "mand" in detected_class
-        and not "straight" in detected_class
-    ):
-        vehicle_state["turn_signal"] = "right"
-        vehicle_state["action"] = "PREPARE TURN RIGHT"
+    # 3. Turn Signals (Immediate Activation, Delayed Steering)
+    elif "left" in detected_class:
+        # If this is a new turn intent
+        if vehicle_state["pending_turn"] != "left":
+            vehicle_state["pending_turn"] = "left"
+            vehicle_state["signal_start_time"] = time.time()
+            # Turn ON signal immediately
+            vehicle_state["turn_signal"] = "left"
+            vehicle_state["action"] = "SIGNALING LEFT"
+
+    elif "right" in detected_class:
+        # If this is a new turn intent
+        if vehicle_state["pending_turn"] != "right":
+            vehicle_state["pending_turn"] = "right"
+            vehicle_state["signal_start_time"] = time.time()
+            # Turn ON signal immediately
+            vehicle_state["turn_signal"] = "right"
+            vehicle_state["action"] = "SIGNALING RIGHT"
 
     # 4. Warnings
-    elif (
-        "warn" in detected_class
-        or "crosswalk" in detected_class
-        or "roundabout" in detected_class
-    ):
+    elif "warn" in detected_class:
         vehicle_state["action"] = "CAUTION"
-        if vehicle_state["current_speed"] > 20:
-            vehicle_state["current_speed"] = max(
-                20, vehicle_state["current_speed"] - 20
-            )
-    elif "highway" in detected_class:
-        vehicle_state["action"] = "HIGHWAY"
-        vehicle_state["speed_limit"] = 130
-        vehicle_state["current_speed"] = max(130, vehicle_state["current_speed"])
 
     # Update last sign for UI display
     vehicle_state["last_sign_class"] = detected_class
 
 
+def check_delayed_actions():
+    """Checks if enough time has passed to activate steering."""
+    global vehicle_state
+
+    if vehicle_state["pending_turn"]:
+        # If signal has been on for > STEERING_DELAY seconds
+        if time.time() - vehicle_state["signal_start_time"] >= STEERING_DELAY:
+            vehicle_state["steering"] = vehicle_state["pending_turn"]
+            vehicle_state["action"] = f"TURNING {vehicle_state['pending_turn'].upper()}"
+            # Keep pending_turn set so we don't reset the timer or re-trigger logic
+            # until the sign disappears/times out.
+
+
 def check_reset_condition():
     """Resets vehicle state if no signs detected for RESET_TIMEOUT."""
     global vehicle_state, last_detection_time
-    if time.time() - last_detection_time > RESET_TIMEOUT:
-        if (
-            vehicle_state["action"] != "CRUISING"
-        ):  # Only log/change if we are actually resetting something
-            vehicle_state = {
-                "speed_limit": 50,
-                "current_speed": 50,  # Return to normal cruise speed
-                "action": "CRUISING",
-                "turn_signal": "none",
-                "last_sign_class": None,
-            }
+
+    # Only reset if we are not already in default state
+    is_default = (
+        vehicle_state["action"] == "CRUISING"
+        and vehicle_state["current_speed"] == 50  # Default speed logic (50)
+        and vehicle_state["turn_signal"] == "none"
+        and vehicle_state["steering"] == "forward"
+        and not vehicle_state["camera_blocked"]
+    )
+
+    if not is_default and (time.time() - last_detection_time > RESET_TIMEOUT):
+        vehicle_state = {
+            "speed_limit": 50,
+            "current_speed": 50,  # Reset to default 50
+            "action": "CRUISING",
+            "turn_signal": "none",
+            "steering": "forward",
+            "last_sign_class": None,
+            "pending_turn": None,
+            "signal_start_time": 0,
+            "camera_blocked": False,
+        }
+
+    # Check steering delay logic regardless of reset timer (as long as sign is active)
+    check_delayed_actions()
+
+    # Send Command to Hardware (Sync every cycle)
+    # Here we implement the -5 logic for the hardware command
+    sent_speed = max(0, vehicle_state["current_speed"] - 5)
+
+    serial_manager.send_command(
+        sent_speed, vehicle_state["turn_signal"], vehicle_state["steering"]
+    )
 
 
 def process_frame(frame, conf_thresh):
@@ -185,8 +300,59 @@ def process_frame(frame, conf_thresh):
     Runs inference on a frame and draws bounding boxes.
     Returns the annotated frame.
     """
+    global vehicle_state
+
     if model is None:
         return frame
+
+    # --- 1. Camera Obstruction Check ---
+    is_obstructed = check_camera_obstruction(frame)
+    if is_obstructed:
+        # Emergency Override
+        vehicle_state["camera_blocked"] = True
+        vehicle_state["action"] = "CAMERA BLOCKED! STOPPING"
+        vehicle_state["current_speed"] = 0
+        vehicle_state["turn_signal"] = "hazard"  # ENABLE HAZARDS
+        vehicle_state["steering"] = "forward"
+
+        # Visual Warning on Frame
+        overlay = frame.copy()
+        cv2.rectangle(
+            overlay, (0, 0), (frame.shape[1], frame.shape[0]), (0, 0, 255), -1
+        )
+        cv2.addWeighted(overlay, 0.3, frame, 0.7, 0, frame)
+        cv2.putText(
+            frame,
+            "CAMERA OBSTRUCTED",
+            (50, 240),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            1.5,
+            (255, 255, 255),
+            3,
+        )
+
+        # Log incident
+        if not detection_history or detection_history[0]["class"] != "CAMERA_BLOCKED":
+            detection_history.appendleft(
+                {
+                    "time": datetime.datetime.now().strftime("%H:%M:%S"),
+                    "class": "CAMERA_BLOCKED",
+                    "conf": "1.00",
+                }
+            )
+            log.warning("Camera obstruction detected! Hazards enabled.")
+
+        # Send command immediately (0 speed, hazards on)
+        serial_manager.send_command(0, "hazard", "forward")
+        return frame  # Skip inference
+    else:
+        # Only reset camera blocked state if it was previously blocked
+        if vehicle_state["camera_blocked"]:
+            vehicle_state["camera_blocked"] = False
+            # Force reset state to normal/cruising immediately
+            vehicle_state["turn_signal"] = "none"
+            vehicle_state["action"] = "CRUISING"
+            vehicle_state["current_speed"] = 50
 
     try:
         # Run inference
@@ -194,8 +360,8 @@ def process_frame(frame, conf_thresh):
 
         current_detections = []
 
-        # Check reset logic every frame
-        check_reset_condition()
+        # Determine if we found any RELEVANT sign this frame to reset the timeout counter
+        found_relevant_sign = False
 
         for r in results:
             boxes = r.boxes
@@ -209,6 +375,7 @@ def process_frame(frame, conf_thresh):
                 # Update Vehicle Logic ONLY if confidence meets threshold
                 if conf >= conf_thresh:
                     update_vehicle_logic(current_class)
+                    found_relevant_sign = True
 
                 # Draw Box
                 cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 255, 0), 2)
@@ -236,6 +403,9 @@ def process_frame(frame, conf_thresh):
                     "conf": f"{conf:.2f}",
                 }
                 current_detections.append(detection_info)
+
+        # Check reset logic every frame
+        check_reset_condition()
 
         # Update global history
         for det in current_detections:
@@ -276,7 +446,7 @@ def capture_frames():
         if inference_enabled:
             frame = process_frame(frame, conf_threshold)
         else:
-            # Even if inference disabled, we might want to reset state if timeout passed
+            # Even if inference disabled, we check reset/delayed actions
             check_reset_condition()
 
         # Calculate FPS
@@ -446,6 +616,27 @@ def dataset_stats_img():
 @app.route("/get_vehicle_state")
 def get_vehicle_state():
     return jsonify(vehicle_state)
+
+
+# --- Serial Port Routes ---
+@app.route("/list_serial_ports")
+def list_serial_ports():
+    ports = [port.device for port in serial.tools.list_ports.comports()]
+    return jsonify(ports)
+
+
+@app.route("/connect_serial", methods=["POST"])
+def connect_serial():
+    data = request.json
+    port = data.get("port")
+    success, msg = serial_manager.connect(port)
+    return jsonify({"success": success, "message": msg})
+
+
+@app.route("/disconnect_serial", methods=["POST"])
+def disconnect_serial():
+    success = serial_manager.disconnect()
+    return jsonify({"success": success})
 
 
 if __name__ == "__main__":

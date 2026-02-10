@@ -1,3 +1,4 @@
+
 Welcome file
 Welcome file
 
@@ -43,8 +44,9 @@ Completați in acest readme tabelul următor cu **minimum 2-3 rânduri** care le
 
 | **Nevoie reală concretă** | **Cum o rezolvă SIA-ul vostru** | **Modul software responsabil** |
 |---------------------------|--------------------------------|--------------------------------|
-| Detectarea semnelor de circulatie in conditii reale si variate | Model performant, date training variate si bine augumentate -> 30% înbunătățire recunoaștere în situații complexe| RN  |
+| Detectarea semnelor de circulatie in conditii reale si variate | Model performant, date training variate si bine augmentate -> 30% înbunătățire recunoaștere în situații complexe| RN  |
 |Rularea eficientă pe diferite platforme hardware și integrarea cu hardware fizic | Folosirea OpenCV și unui model optimizat pentru o utilizare redusă a resurselor | RN + App |
+| Fiabilitatea sistemului, necesară în industria automotive | Acuratete ridicata RN (>90%), detectie situatii critice (camera acoperita/deconectata) | RN + App |
 
 
 **Instrucțiuni:**
@@ -96,24 +98,23 @@ Alegeți UNA sau MAI MULTE dintre variantele de mai jos și **demonstrați clar 
 
 #### Declarație obligatorie în README:
 
-Scrieți clar în acest README (Secțiunea 2):
 
-```markdown
 ### Contribuția originală la setul de date:
 
 **Total observații finale:** 7634 (după Etapa 3 + Etapa 4)
 **Observații originale:** 3252 (42.6%)
 
 **Tipul contribuției:**
-[ ] Date generate prin simulare fizică  
-[ ] Date achiziționate cu senzori proprii  
-[ ] Etichetare/adnotare manuală  
-[ ] Date sintetice prin metode avansate  
-[X] Date generate computațional
+
+- [ ] Date generate prin simulare fizică  
+- [ ] Date achiziționate cu senzori proprii  
+- [ ] Etichetare/adnotare manuală  
+- [ ] Date sintetice prin metode avansate  
+- [X] Date generate prin procesare computațională
 
 **Descriere detaliată:**
 Am generat feature-uri random (linii, patrate) pe imaginile din dataset,
-folosind OpenCV, reprezentand o augumentare complexa a datelor.
+folosind OpenCV, reprezentand o augmentare complexa a datelor.
 
 **Locația codului:** `src/data_acquisition/generate_img.py`
 **Locația datelor:** `data/generated/`
@@ -133,7 +134,6 @@ folosind OpenCV, reprezentand o augumentare complexa a datelor.
 - Aplicare filtre standard (Gaussian blur, contrast) pe imagini publice  
 - Normalizare/standardizare (aceasta e preprocesare, nu generare)  
 - Subset dintr-un dataset public (ex: selectat 40% din ImageNet)
-
 
 ---
 
@@ -202,7 +202,7 @@ RN_FORECAST (24h ahead) → VALIDATE_FORECAST (sanity checks) →
                 ACQUIRE_CURRENT_CONDITIONS (loop)
        ↓ [User request report]
      GENERATE_DAILY_REPORT → STOP
-
+```
 
 **Notă pentru proiecte simple:**
 Chiar dacă aplicația voastră este o clasificare simplă (user upload → classify → display), trebuie să modelați fluxul ca un State Machine. Acest exercițiu vă învață să gândiți modular și să anticipați toate stările posibile (inclusiv erori).
@@ -214,20 +214,21 @@ Am ales arhitectura de monitorizare continuă deoarece proiectul poate fi integr
 de control al unui vehicul autonom, unde reacția în timp real este critică.
 
 Stările principale sunt:
-1. Start Web UI: Interfata este pornita de utilizator, porneste inferenta daca exista o camera web.
-2. Get image from camera: Obtine o imagine de la camera web cu indexul 0 de pe sistem
-3. Inference: Ruleaza reteaua neuronala pentru a identifica semnele de circulatie din imagine
-4. Display inference output: se afiseaza clasele identificate pe imagine
-5. Wait for user input: se asteapta ca utilizatorul sa faca o actiune (sa schimbe tab-ul, sa incarce o imagine)
-6. Fetch and display histograms: se apeleaza modulul de analiza si afiseaza histograme relevante
-
+1. **Start Web UI:** Interfata este pornita de utilizator, porneste inferenta daca exista o camera web.
+2. **Get image from camera:** Obtine o imagine de la camera web cu indexul 0 de pe sistem
+3. **Inference:** Ruleaza reteaua neuronala pentru a identifica semnele de circulatie din imagine
+4. **Display inference output:** se afiseaza clasele identificate pe imagine
+5. **Wait for user input:** se asteapta ca utilizatorul sa faca o actiune (sa schimbe tab-ul, sa incarce o imagine)
+6. **Fetch and display histograms:** se apeleaza modulul de analiza si afiseaza histograme relevante
+7. **Calculate speed, signal and steering actions:** se determina schimbarea de stare necesara in functie de semnul detectat (ex. semn STOP -> oprire vehicul)
+8. **Enable alarm, hazard signal and stop vehicle:** se activeaza alarma, semnalele de avarie si se opreste vehiculul daca camera este acoperita
 
 Tranzițiile critice sunt:
+- Operare -> Stare alarma: Daca camera este acoperita in timpul functionarii.
 - Operare -> STOP: Daca utilizatorul inchide interfata web.
-- IDLE -> ERROR FRAME: Daca nu exista o camera video conectata la sistem/s-a pierdut conexiunea.
+- Operare -> ERROR FRAME: Daca nu exista o camera video conectata la sistem/s-a pierdut conexiunea.
 
-Starea ERROR este esențială pentru că exista posibilitatea ca, din cauza vibratiilor, sa se piarda conexiunea cu camera intr-un sistem mobil autonom. 
-
+Starea de alarma este esențială pentru că exista posibilitatea sa existe diferite elemente (praf, frunze etc.) care acopera camera.
 
 ---
 

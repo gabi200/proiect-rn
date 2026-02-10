@@ -1,6 +1,7 @@
 
 
 
+
 # README – Etapa 6: Analiza Performanței, Optimizarea și Concluzii Finale
 
 **Disciplina:** Rețele Neuronale  
@@ -130,6 +131,8 @@ Am ales Experimentul 4 ca model final:
  |**Preview cameră** | Stream cameră cu overlay detecție| Adăugat FPS counter | Monitorizare performanță sistem în timp real |
   |**Snapshots** | N/A| Adăugat opțiune de captura snapshot cameră (cu overlay detecție și FPS) | Captura output sistem pentru logging/debugging |
   |**Simulare sistem de control vehicul** | N/A| Adăugat simulare stare vehicul (vitezometru, semnalizare) care reactioneaza la semnele detectate |Demonstratie aplicatie reala a sistemului |
+   |**Detectie camera acoperita** | N/A| Detectare camera acoperita si atentionare prin alarma audio si vizuala | Asigurarea sigurantei sistemului |
+   |**Simulare cu sistem hardware** | N/A| Transmiterea datelor legate de starea vehiculului la un sistem hardware | Evidentierea legaturii dintre software si hardware intr-o aplicatie reala |
 
 ### Modificări concrete aduse în Etapa 6:
 
@@ -137,13 +140,17 @@ Am ales Experimentul 4 ca model final:
    - Îmbunătățire: Accuracy +4%, F1 +9%
    - Motivație: aplicația are cerințe ridicate de siguranță și fiabilitate
 
-3. **UI îmbunătățit:**
+2. **UI îmbunătățit:**
    - Adăugat FPS counter, opțiune export snapshot, opțiune export logs
    - Screenshot-uri: `docs/screenshots/ui_optimized_1.png, ui_optimized_2.png, ui_optimized_3.png, ui_optimized_4.png`
 
-4. **Pipeline end-to-end re-testat:**
+3. **Pipeline end-to-end re-testat:**
    - Test complet: input → preprocess → inference → decision → output
    - Timp total: 17.6 ms (vs 17.5 ms în Etapa 5)
+   
+4. **Adaugare simulare stare vehicul:**
+	- simulare stare vehicul in Web UI
+	- conexiune prin serial la un sistem hardware
 
 ---
 
@@ -154,7 +161,6 @@ Am ales Experimentul 4 ca model final:
 **Locație:** `docs/confusion_matrix_optimized.png`
 
 **Analiză obligatorie (completați):**
-
 
 ### Interpretare Confusion Matrix:
 
@@ -184,33 +190,88 @@ Selectați și analizați **minimum 5 exemple greșite** de pe test set:
 
 | **Path** | **True Label** | **Predicted** | **Confidence** | **Cauză probabilă** | **Soluție propusă** |
 |-----------|----------------|---------------|----------------|---------------------|---------------------|
-|  `docs/fail_examples/1.png`  | N/A|` mand_roundabout `| 0.5 | Logo de pe o masina cu geometrie si  culoare similara cu semnul | X|
-|  `docs/fail_examples/2.png`  | N/A |` warn_two_way_traffic `| 0.4 | Semnul real nu e in dataset, dar e tot de avertizare si are simbol similar| X |
-| `docs/fail_examples/3.jpg` |` mand_pass_left_right` |` mand_bike_lane` | 0.71 | Semnul este murdar si are stickere pe el | X |
-| `docs/fail_examples/4.jpg` | N/A |` prio_stop` | 0.70 | Culoare si forma similiara | X
-|`docs/fail_examples/5.jpg` | N/A|`info_one_way_traffic` | 0.41 | Culoare si forma similara | X |
+|  `docs/fail_examples/1.png`  | N/A|` mand_roundabout `| 0.5 | Logo cu geoemtrie si culoare similara | Cresterea valorii minime de confidence |
+|  `docs/fail_examples/2.png`  | N/A |` warn_two_way_traffic `| 0.4 | Semnul real nu e in dataset, dar e tot de avertizare si are simbol similar| Cresterea valorii minime de confidence, cresterea rezolutiei la training |
+| `docs/fail_examples/3.jpg` |` mand_pass_left_right` |` mand_bike_lane` | 0.71 | Semnul este murdar si are stickere pe el | Cresterea numarului datelor de training, cresterea rezolutiei imaginilor |
+| `docs/fail_examples/4.jpg` | N/A |` prio_stop` | 0.70 | Culoare si forma similiara | Diversificarea background-ului imaginilor prin augmentare |
+|`docs/fail_examples/5.jpg` | N/A|`info_one_way_traffic` | 0.41 | Culoare si forma similara |  Cresterea valorii minime de confidence|
 
 **Analiză detaliată per exemplu (scrieți pentru fiecare):**
-```markdown
-### Exemplu #127 - Defect mare clasificat ca defect mic
 
-**Context:** Imagine radiografică sudură, defect vizibil în centru
-**Input characteristics:** brightness=0.3 (subexpus), contrast=0.7
-**Output RN:** [defect_mic: 0.52, defect_mare: 0.38, normal: 0.10]
+### Exemplu 1 - Fals pozitiv pentru `mand_roundabout`
+
+**Context:** Logo pe o masina care are o forma circulara si contur albastru
+**Output RN:**` mand_roundabout 0.5 `
 
 **Analiză:**
-Imaginea originală are brightness scăzut (0.3 vs. media dataset 0.6), ceea ce 
-face ca textura defectului să fie mai puțin distinctă. Modelul a "văzut" un 
-defect, dar l-a clasificat în categoria mai puțin severă.
+Imaginea surprinde un logo pe o masina, care este clar vizibil, avand forma circulara si culoare albastra.
 
 **Implicație industrială:**
-Acest tip de eroare (downgrade severitate) poate duce la subestimarea riscului.
-În producție, sudura ar fi acceptată când ar trebui re-inspectată.
+Detectarea fals-pozitivă a unui semn de sens giratoriu poate duce la încetinirea fără motiv a vehicului. 
 
 **Soluție:**
-1. Augmentare cu variații brightness în intervalul [0.2, 0.8]
-2. Normalizare histogram înainte de inference (în PREPROCESS state)
-```
+1. Mărirea valorii minime de confidence
+2. Diversificarea background-urilor pentru context adițional
+
+### Exemplu 2 - Fals pozitiv pentru `warn_two_way_traffic`
+
+**Context:** Semn de ingustarea drumului pe partea dreapta, care nu e in dataset
+**Output RN:**` warn_two_way_traffic 0.4 `
+
+**Analiză:**
+Imaginea surprinde un semn de circulatie de avertizare, care totusi nu e in dataset (ingustarea drumului pe partea dreapta). Acesta a fost confundat cu semnul de avertizare pentru circulație in ambele sensuri, deoarece ambele sunt indicatoare de avertizare, si au geometria simbolurilor similara.
+
+**Implicație industrială:**
+Detectarea fals-pozitivă a unui semn de circulație în ambele sensuri poate cauza probleme dacă este detectat într-o zonă cu sens unic, încetinind vehiculul deoarece acesta se poate aștepta la trafic din sens opus.
+
+**Soluție:**
+1. Mărirea valorii minime de confidence
+2. Cresterea rezolutiei datelor de trainining 
+
+### Exemplu 3 - `mand_pass_left_right` confundat cu ` mand_bike_lane`
+
+**Context:** Semn de ocolire prin stanga sau dreapta confundat cu semnul pentru pista de biciclete
+**Output RN:**` mand_bike_line 0.71 `
+
+**Analiză:**
+Imaginea surprinde un semn de ocolire prin stanga sau dreapta care este acoperit de desene si stickere, astfel geometria lui nefiind clara, creeand o vaga forma similara cu cea a semnului de pista de biciclete.
+
+**Implicație industrială:**
+Nedetectarea corectă a semnului de ocolire poate avea consecințe severe doarece acesta marcheaza de obicei un obstacol, iar confuzia cu indicatorul pentru pista de biciclete poate cauza vehiculul sa schimbe banda fara motiv,  evitand "banda pentru biciclete".
+
+**Soluție:**
+1. Marirea numarului datelor de training 
+2. Cresterea rezolutiei datelor de trainining 
+
+### Exemplu 4 - Fals pozitiv pentru ` prio_stop `
+
+**Context:** Logo cu culoare si geometrie similara cu semnul STOP
+**Output RN:**` prio_stop 0.70 `
+
+**Analiză:**
+Imaginea surprinde un logo cu geometrie similara (hexagon) si schema culori (rosu si alb) cu un semn STOP. 
+
+**Implicație industrială:**
+Detectarea fals-pozitiva a semnului STOP este o eroare critica deoarece poate cauza vehiculul sa se opreasca brusc in timp ce merge la viteza mare, existand riscul de cauzarea accidentelor.
+
+**Soluție:**
+1. Diversificarea background-ului imaginilor, augmentare suplimentara
+2. Cresterea rezolutiei datelor de trainining 
+
+### Exemplu 5 - Fals pozitiv pentru ` info_one_way_traffic `
+
+**Context:** Logo cu culoare si geometrie similara cu semnul de sens unic
+**Output RN:**` info_one_way_traffic 0.41 `
+
+**Analiză:**
+Imaginea surprinde un logo cu geometrie similara (patrat) si culori similare (albastru si alb). 
+
+**Implicație industrială:**
+Detectarea fals-pozitiva a semnului de sens unic poate avea consecinte severe doarece vehiculul nu se va astepta sa existe vehicule care vin din sensul opus, astfel crescand potentialul de accidente.
+
+**Soluție:**
+1. Diversificarea background-ului imaginilor, augmentare suplimentara
+2. Cresterea rezolutiei datelor de trainining 
 
 ---
 
@@ -279,13 +340,10 @@ Generați și salvați în `docs/optimization/`:
 
 | **Metrică** | **Etapa 4** | **Etapa 5** | **Etapa 6** | **Target Industrial** | **Status** |
 |-------------|-------------|-------------|-------------|----------------------|------------|
-| Accuracy | ~20% | 72% | 81% | ≥85% | Aproape |
-| F1-score (macro) | ~0.15 | 0.68 | 0.77 | ≥0.80 | Aproape |
-| Precision (defect) | N/A | 0.75 | 0.83 | ≥0.85 | Aproape |
-| Recall (defect) | N/A | 0.70 | 0.88 | ≥0.90 | Aproape |
-| False Negative Rate | N/A | 12% | 5% | ≤3% | Aproape |
-| Latență inferență | 50ms | 48ms | 35ms | ≤50ms | OK |
-| Throughput | N/A | 20 inf/s | 28 inf/s | ≥25 inf/s | OK |
+| Accuracy | N/A | 91.7% | 95.7% | ≥99% | Aproape |
+| F1-score (macro) |N/A | 0.83 | 0.91 | ≥0.98 | Aproape |
+| Recall (macro) | N/A | 0.97 | 0.98 | ≥0.97 | OK |
+| Latență inferență | N/A | 17.5ms | 17.6ms | ≤50ms | OK |
 
 ### 4.2 Vizualizări Obligatorii
 
@@ -293,7 +351,7 @@ Salvați în `docs/results/`:
 
 - [X] `confusion_matrix_optimized.png` - Confusion matrix model final
 - [X] `learning_curves_final.png` - Loss și accuracy vs. epochs
-- [ ] `metrics_evolution.png` - Evoluție metrici Etapa 4 → 5 → 6
+- [X] `metrics_evolution.png` - Evoluție metrici Etapa 4 → 5 → 6
 - [X] `example_predictions.png` - Grid cu 9+ exemple (correct + greșite)
 
 ---
@@ -304,121 +362,90 @@ Salvați în `docs/results/`:
 
 ### 5.1 Evaluarea Performanței Finale
 
-```markdown
+
 ### Evaluare sintetică a proiectului
 
 **Obiective atinse:**
-- [ ] Model RN funcțional cu accuracy [X]% pe test set
-- [ ] Integrare completă în aplicație software (3 module)
-- [ ] State Machine implementat și actualizat
-- [ ] Pipeline end-to-end testat și documentat
-- [ ] UI demonstrativ cu inferență reală
-- [ ] Documentație completă pe toate etapele
+- [X] Model RN funcțional cu accuracy 95.7% pe test set
+- [X] Integrare completă în aplicație software (3 module)
+- [X] State Machine implementat și actualizat
+- [X] Pipeline end-to-end testat și documentat
+- [X] UI demonstrativ cu inferență reală
+- [X] Documentație completă pe toate etapele
+- [X] Demo cu sistem hardware pentru simulare vehicul
 
 **Obiective parțial atinse:**
-- [ ] [Descrieți ce nu a funcționat perfect - ex: accuracy sub target pentru clasa X]
+- Fals pozitive în diferite situații, care pot cauza situații periculoase
+- Potențială confuzie între anumite semne (limite de viteză)
 
 **Obiective neatinse:**
-- [ ] [Descrieți ce nu s-a realizat - ex: deployment în cloud, optimizare NPU]
-```
+- Deployment pe un sistem embedded (de ex. Raspberry Pi)
+
 
 ### 5.2 Limitări Identificate
 
-```markdown
+
 ### Limitări tehnice ale sistemului
 
 1. **Limitări date:**
-   - [ex: Dataset dezechilibrat - clasa 'defect_mare' are doar 8% din total]
-   - [ex: Date colectate doar în condiții de iluminare ideală]
+   - Dataset dezechilibrat - clasa 'info_crosswalk' apare de mult mai multe ori decat celelalte (>1200 imagini)
+   - Datele sunt colectate de pe Street View in conditii meteo normale si cu iluminare buna
 
 2. **Limitări model:**
-   - [ex: Performanță scăzută pe imagini cu reflexii metalice]
-   - [ex: Generalizare slabă pe tipuri de defecte nevăzute în training]
+   - Probleme cu false-positives
+   - Confuzie intre anumite clase, in special semnele de limita de viteza
 
 3. **Limitări infrastructură:**
-   - [ex: Latență de 35ms insuficientă pentru linie producție 60 piese/min]
-   - [ex: Model prea mare pentru deployment pe edge device]
+   - Model prea mare pentru deployment pe edge device
 
 4. **Limitări validare:**
-   - [ex: Test set nu acoperă toate condițiile din producție reală]
-```
+   - Test set nu acoperă toate condițiile din situațiile reale
 
 ### 5.3 Direcții de Cercetare și Dezvoltare
 
-```markdown
+
 ### Direcții viitoare de dezvoltare
 
 **Pe termen scurt (1-3 luni):**
-1. Colectare [X] date adiționale pentru clasa minoritară
-2. Implementare [tehnica Y] pentru îmbunătățire recall
-3. Optimizare latență prin [metoda Z]
-...
+1. Colectare mai multe date pentru anumite clase
+2. Folosire rezoluție mai mare pentru training
 
 **Pe termen mediu (3-6 luni):**
-1. Integrare cu sistem SCADA din producție
-2. Deployment pe [platform edge - ex: Jetson, NPU]
-3. Implementare monitoring MLOps (drift detection)
-...
-
-```
+3. Deployment pe sistem edge (Raspberry Pi, Jetson)
+4. Integrare cu sistem de control vehicul
 
 ### 5.4 Lecții Învățate
 
-```markdown
+
 ### Lecții învățate pe parcursul proiectului
 
 **Tehnice:**
-1. [ex: Preprocesarea datelor a avut impact mai mare decât arhitectura modelului]
-2. [ex: Augmentările specifice domeniului > augmentări generice]
-3. [ex: Early stopping esențial pentru evitare overfitting]
+1. Augmentările specifice domeniului sunt esentiale
+2. Alegerea valorilor hiperparametrilor pot creea diferente semnificative
 
 **Proces:**
-1. [ex: Iterațiile frecvente pe date au adus mai multe îmbunătățiri decât pe model]
-2. [ex: Testarea end-to-end timpurie a identificat probleme de integrare]
-3. [ex: Documentația incrementală a economisit timp la final]
+3. Trebuie gasit un compromis intre timpul de antrenare si performanta
+4. Testarea pe module si end-to-end este esentiala
+5. Documentatia incrementala a economisit timp
 
 **Colaborare:**
-1. [ex: Feedback de la experți domeniu a ghidat selecția features]
-2. [ex: Code review a identificat bug-uri în pipeline preprocesare]
-```
+6. Feedback de la experți domeniu a ghidat selecția features
 
 ### 5.5 Plan Post-Feedback (ULTIMA ITERAȚIE ÎNAINTE DE EXAMEN)
 
-```markdown
 ### Plan de acțiune după primirea feedback-ului
 
 **ATENȚIE:** Etapa 6 este ULTIMA VERSIUNE pentru care se oferă feedback!
 Implementați toate corecțiile înainte de examen.
 
-După primirea feedback-ului de la evaluatori, voi:
-
-1. **Dacă se solicită îmbunătățiri model:**
-   - [ex: Experimente adiționale cu arhitecturi alternative]
-   - [ex: Colectare date suplimentare pentru clase problematice]
-   - **Actualizare:** `models/`, `results/`, README Etapa 5 și 6
-
-2. **Dacă se solicită îmbunătățiri date/preprocesare:**
-   - [ex: Rebalansare clase, augmentări suplimentare]
-   - **Actualizare:** `data/`, `src/preprocessing/`, README Etapa 3
-
-3. **Dacă se solicită îmbunătățiri arhitectură/State Machine:**
-   - [ex: Modificare fluxuri, adăugare stări]
-   - **Actualizare:** `docs/state_machine.*`, `src/app/`, README Etapa 4
-
-4. **Dacă se solicită îmbunătățiri documentație:**
-   - [ex: Detaliere secțiuni specifice]
-   - [ex: Adăugare diagrame explicative]
-   - **Actualizare:** README-urile etapelor vizate
-
-5. **Dacă se solicită îmbunătățiri cod:**
-   - [ex: Refactorizare module conform feedback]
-   - [ex: Adăugare teste unitare]
-   - **Actualizare:** `src/`, `requirements.txt`
+După primirea feedback-ului de la evaluatori:
+- Adaugare simulare sistem de control vehicul in Web UI
+- Sistem hardware de simulare
 
 **Timeline:** Implementare corecții până la data examen
 **Commit final:** `"Versiune finală examen - toate corecțiile implementate"`
 **Tag final:** `git tag -a v1.0-final-exam -m "Versiune finală pentru examen"`
-```
+
 ---
 
 ## Structura Repository-ului la Finalul Etapei 6
@@ -503,112 +530,62 @@ proiect-rn-[prenume-nume]/
 
 ---
 
-## Instrucțiuni de Rulare (Etapa 6)
-
-### 1. Rulare experimente de optimizare
-
-```bash
-# Opțiunea A - Manual (minimum 4 experimente)
-python src/neural_network/train.py --lr 0.001 --batch 32 --epochs 100 --name exp1
-python src/neural_network/train.py --lr 0.0001 --batch 32 --epochs 100 --name exp2
-python src/neural_network/train.py --lr 0.001 --batch 64 --epochs 100 --name exp3
-python src/neural_network/train.py --lr 0.001 --batch 32 --dropout 0.5 --epochs 100 --name exp4
-```
-
-### 2. Evaluare și comparare
-
-```bash
-python src/neural_network/evaluate.py --model models/optimized_model.h5 --detailed
-
-# Output așteptat:
-# Test Accuracy: 0.8123
-# Test F1-score (macro): 0.7734
-# ✓ Confusion matrix saved to docs/confusion_matrix_optimized.png
-# ✓ Metrics saved to results/final_metrics.json
-# ✓ Top 5 errors analysis saved to results/error_analysis.json
-```
-
-### 3. Actualizare UI cu model optimizat
-
-```bash
-# Verificare că UI încarcă modelul corect
-streamlit run src/app/main.py
-
-# În consolă trebuie să vedeți:
-# Loading model: models/optimized_model.h5
-# Model loaded successfully. Accuracy on validation: 0.8123
-```
-
-### 4. Generare vizualizări finale
-
-```bash
-python src/neural_network/visualize.py --all
-
-# Generează:
-# - docs/results/metrics_evolution.png
-# - docs/results/learning_curves_final.png
-# - docs/optimization/accuracy_comparison.png
-# - docs/optimization/f1_comparison.png
-```
-
----
-
 ## Checklist Final – Bifați Totul Înainte de Predare
 
 ### Prerequisite Etapa 5 (verificare)
-- [ ] Model antrenat există în `models/trained_model.h5`
-- [ ] Metrici baseline raportate (Accuracy ≥65%, F1 ≥0.60)
-- [ ] UI funcțional cu model antrenat
-- [ ] State Machine implementat
+- [X] Model antrenat există în `models/trained_model.h5`
+- [X] Metrici baseline raportate (Accuracy ≥65%, F1 ≥0.60)
+- [X] UI funcțional cu model antrenat
+- [X] State Machine implementat
 
 ### Optimizare și Experimentare
-- [ ] Minimum 4 experimente documentate în tabel
-- [ ] Justificare alegere configurație finală
-- [ ] Model optimizat salvat în `models/optimized_model.h5`
-- [ ] Metrici finale: **Accuracy ≥70%**, **F1 ≥0.65**
-- [ ] `results/optimization_experiments.csv` cu toate experimentele
-- [ ] `results/final_metrics.json` cu metrici model optimizat
+- [X] Minimum 4 experimente documentate în tabel
+- [X] Justificare alegere configurație finală
+- [X] Model optimizat salvat în `models/optimized_model.h5`
+- [X] Metrici finale: **Accuracy ≥70%**, **F1 ≥0.65**
+- [X] `results/optimization_experiments.csv` cu toate experimentele
+- [X] `results/final_metrics.json` cu metrici model optimizat
 
 ### Analiză Performanță
-- [ ] Confusion matrix generată în `docs/confusion_matrix_optimized.png`
-- [ ] Analiză interpretare confusion matrix completată în README
-- [ ] Minimum 5 exemple greșite analizate detaliat
-- [ ] Implicații industriale documentate (cost FN vs FP)
+- [X] Confusion matrix generată în `docs/confusion_matrix_optimized.png`
+- [X] Analiză interpretare confusion matrix completată în README
+- [X] Minimum 5 exemple greșite analizate detaliat
+- [X] Implicații industriale documentate (cost FN vs FP)
 
 ### Actualizare Aplicație Software
-- [ ] Tabel modificări aplicație completat
-- [ ] UI încarcă modelul OPTIMIZAT (nu cel din Etapa 5)
-- [ ] Screenshot `docs/screenshots/inference_optimized.png`
-- [ ] Pipeline end-to-end re-testat și funcțional
-- [ ] (Dacă aplicabil) State Machine actualizat și documentat
+- [X] Tabel modificări aplicație completat
+- [X] UI încarcă modelul OPTIMIZAT (nu cel din Etapa 5)
+- [X] Screenshot `docs/screenshots/inference_optimized.png`
+- [X] Pipeline end-to-end re-testat și funcțional
+- [X] (Dacă aplicabil) State Machine actualizat și documentat
 
 ### Concluzii
-- [ ] Secțiune evaluare performanță finală completată
-- [ ] Limitări identificate și documentate
-- [ ] Lecții învățate (minimum 5)
-- [ ] Plan post-feedback scris
+- [X] Secțiune evaluare performanță finală completată
+- [X] Limitări identificate și documentate
+- [X] Lecții învățate (minimum 5)
+- [X] Plan post-feedback scris
 
 ### Verificări Tehnice
-- [ ] `requirements.txt` actualizat
-- [ ] Toate path-urile RELATIVE
-- [ ] Cod nou comentat (minimum 15%)
-- [ ] `git log` arată commit-uri incrementale
-- [ ] Verificare anti-plagiat respectată
+- [X] `requirements.txt` actualizat
+- [X] Toate path-urile RELATIVE
+- [X] Cod nou comentat (minimum 15%)
+- [X] `git log` arată commit-uri incrementale
+- [X] Verificare anti-plagiat respectată
 
 ### Verificare Actualizare Etape Anterioare (ITERATIVITATE)
-- [ ] README Etapa 3 actualizat (dacă s-au modificat date/preprocesare)
-- [ ] README Etapa 4 actualizat (dacă s-a modificat arhitectura/State Machine)
-- [ ] README Etapa 5 actualizat (dacă s-au modificat parametri antrenare)
-- [ ] `docs/state_machine.*` actualizat pentru a reflecta versiunea finală
-- [ ] Toate fișierele de configurare sincronizate cu modelul optimizat
+- [X] README Etapa 3 actualizat (dacă s-au modificat date/preprocesare)
+- [X] README Etapa 4 actualizat (dacă s-a modificat arhitectura/State Machine)
+- [X] README Etapa 5 actualizat (dacă s-au modificat parametri antrenare)
+- [X] `docs/state_machine.*` actualizat pentru a reflecta versiunea finală
+- [X] Toate fișierele de configurare sincronizate cu modelul optimizat
 
 ### Pre-Predare
-- [ ] `etapa6_optimizare_concluzii.md` completat cu TOATE secțiunile
-- [ ] Structură repository conformă modelului de mai sus
-- [ ] Commit: `"Etapa 6 completă – Accuracy=X.XX, F1=X.XX (optimizat)"`
-- [ ] Tag: `git tag -a v0.6-optimized-final -m "Etapa 6 - Model optimizat + Concluzii"`
-- [ ] Push: `git push origin main --tags`
-- [ ] Repository accesibil (public sau privat cu acces profesori)
+- [X] `etapa6_optimizare_concluzii.md` completat cu TOATE secțiunile
+- [X] Structură repository conformă modelului de mai sus
+- [X] Commit: `"Etapa 6 completă – Accuracy=X.XX, F1=X.XX (optimizat)"`
+- [X] Tag: `git tag -a v0.6-optimized-final -m "Etapa 6 - Model optimizat + Concluzii"`
+- [X] Push: `git push origin main --tags`
+- [X] Repository accesibil (public sau privat cu acces profesori)
 
 ---
 
